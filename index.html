@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>EMG v0.2.1</title>
+<style>
+:root{--bg:#0d0f12;--panel:#15181d;--panel2:#1c2027;--line:#2a2f38;--ink:#e8eaee;--dim:#8a919c;--acc:#ff7a2f;--ok:#38d27a;--warn:#ffc940;--bad:#ff4d5e;--rec:#ff3b4e}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{touch-action:manipulation;margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.3 -apple-system,"Helvetica Neue","Hiragino Sans",sans-serif;overflow:hidden}
+button{font:inherit;color:inherit}
+#app{display:grid;grid-template-rows:52px 1fr 230px;height:100%;padding:max(8px,env(safe-area-inset-top)) 10px 10px;gap:8px}
+header{display:flex;align-items:center;gap:8px}
+.logo{font-weight:800;letter-spacing:.14em;font-size:15px;margin-right:4px}.logo small{color:var(--dim);font-weight:600;font-size:10px;letter-spacing:.06em;margin-left:5px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:9px;height:40px;min-width:52px;padding:0 12px;font-weight:650;font-size:12.5px;letter-spacing:.05em;white-space:nowrap}
+.btn.on{background:var(--acc);border-color:var(--acc);color:#111}
+.btn.rec.on{background:var(--rec);border-color:var(--rec);color:#fff}
+.btn.sm{height:32px;min-width:38px;padding:0 9px;font-size:11.5px}
+.btn.big{min-width:78px;font-size:14px}
+.btn:disabled{opacity:.35}
+.seg{display:flex;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg .btn{border:0;border-radius:0;border-right:1px solid var(--line)}.seg .btn:last-child{border-right:0}
+.spacer{flex:1}
+.bpm{display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:0 4px;height:40px}
+.bpm b{font-size:19px;min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+.bpm .btn{height:30px;min-width:30px;padding:0}
+select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:9px;height:40px;padding:0 6px;font:650 12px inherit}
+.lampBtn{display:flex;align-items:center;gap:6px}
+.lamp{width:12px;height:12px;border-radius:50%;background:#444}
+.lamp.ok{background:var(--ok)}.lamp.warn{background:var(--warn)}.lamp.bad{background:var(--bad)}
+.page{display:none;min-height:0}.page.on{display:grid}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;min-height:0}
+/* ---- SEQ ---- */
+#seqPage{grid-template-columns:196px minmax(0,1fr);gap:8px}
+#tracks{display:flex;flex-direction:column;gap:4px;padding:6px;overflow:hidden}
+.trk{display:grid;grid-template-columns:6px 1fr 30px 30px;align-items:center;gap:6px;height:calc((100% - 44px)/12);min-height:34px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:0 6px 0 0;position:relative;overflow:hidden}
+.trk .bar{height:100%;border-radius:8px 0 0 8px}
+.trk .nm{font-weight:700;font-size:12px;letter-spacing:.04em;line-height:1.1}
+.trk .nm small{display:block;color:var(--dim);font-weight:600;font-size:10px;letter-spacing:.08em}
+.trk.sel{border-color:#fff8;background:#262b34}
+.trk.empty .nm{color:#59606b}
+.trk .ms{height:26px;min-width:0;padding:0;font-size:10.5px;border-radius:6px}
+.trk .ms.on.m{background:#5a6270;border-color:#5a6270;color:#fff}.trk .ms.on.s{background:var(--warn);border-color:var(--warn);color:#111}
+.trk .meter{position:absolute;left:6px;bottom:0;height:2px;background:var(--ok);width:0}
+.trkHead{display:flex;justify-content:space-between;align-items:center;color:var(--dim);font-size:10.5px;letter-spacing:.1em;font-weight:700;padding:2px 4px 4px}
+#editor{display:grid;grid-template-rows:auto auto 1fr 96px;gap:6px;padding:8px}
+.bar1{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow:hidden}
+.bank{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;flex:1}
+.pad{height:36px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);font-size:11px;font-weight:700;position:relative;padding:0}
+.pad.has::after{content:"";position:absolute;right:4px;top:4px;width:5px;height:5px;border-radius:50%;background:var(--dim)}
+.pad.cur{background:var(--acc);border-color:var(--acc);color:#111}
+.pad.cur.has::after{background:#111}
+.pad.q{animation:blink .5s steps(2) infinite}
+@keyframes blink{50%{background:#ff7a2f55}}
+.bar2{display:flex;gap:6px;align-items:center;min-width:0;overflow:hidden}
+.lbl{color:var(--dim);font-size:10.5px;letter-spacing:.1em;font-weight:700}
+#roll,#lane{width:100%;height:100%;display:block;touch-action:none;border-radius:8px}
+.rollWrap{position:relative;min-height:0}
+/* ---- bottom ---- */
+#bottom{display:grid;grid-template-columns:150px 1fr;gap:8px;min-height:0}
+#bottomSide{display:flex;flex-direction:column;gap:6px;padding:8px}
+#bottomSide .btn{width:100%}
+#bottomMain{position:relative;padding:8px;min-height:0}
+#keys{position:absolute;inset:8px}
+.wk,.bk{position:absolute;border-radius:0 0 8px 8px;touch-action:none}
+.wk{background:#e9ebef;border:1px solid #9aa;top:0;bottom:0}
+.bk{background:#20242b;top:0;height:60%;z-index:2;border:1px solid #000}
+.wk.dn,.bk.dn{background:var(--acc)}
+.wk.root::after{content:attr(data-nm);position:absolute;bottom:6px;left:0;right:0;text-align:center;color:#555;font-size:10px;font-weight:700}
+#pads{position:absolute;inset:8px;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:1fr 1fr;gap:8px}
+.dpad{border-radius:10px;border:1px solid var(--line);background:var(--panel2);font-weight:800;font-size:15px;letter-spacing:.06em;touch-action:none}
+.dpad.dn{background:var(--acc);color:#111}
+#sound{position:absolute;inset:8px;display:flex;flex-direction:column;gap:8px}
+.typeRow{display:flex;gap:8px;align-items:center}
+.knobs{display:flex;gap:10px 14px;align-items:flex-start;flex-wrap:wrap}
+.knob{width:80px;display:flex;flex-direction:column;align-items:center;gap:2px;touch-action:none}
+.knob svg{width:68px;height:68px;display:block}
+.knob .kl{font-size:10px;color:var(--dim);letter-spacing:.08em;font-weight:700}
+.knob .kv{font-size:12px;font-variant-numeric:tabular-nums}
+.empty-msg{color:var(--dim);padding:16px}
+/* ---- SONG ---- */
+#app.songMode{grid-template-rows:52px 1fr}
+#app.songMode #bottom{display:none}
+#songPage{grid-template-rows:auto 1fr auto;gap:8px}
+#songTop{display:flex;align-items:center;gap:8px;padding:8px}
+.songStat{background:#0b0d10;border-radius:8px;padding:6px 10px;font-variant-numeric:tabular-nums;min-width:330px;flex:1}
+.songStat b{display:block;font-size:14px}
+.songStat span{color:var(--dim);font-size:11px}
+#chainWrap{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px 10px;min-height:0}
+.blk{display:grid;grid-template-columns:40px repeat(16,1fr);gap:3px;margin-bottom:12px}
+.blk .hd{font-size:10.5px;color:var(--dim);text-align:center;font-weight:700;font-variant-numeric:tabular-nums;height:16px;border-radius:4px}
+.blk .hd.play{background:var(--acc);color:#111}
+.blk .rl{font-size:10px;color:var(--dim);font-weight:800;letter-spacing:.06em;display:flex;align-items:center}
+.cell{height:34px;border-radius:7px;border:1px solid var(--line);background:var(--panel2);font-weight:800;font-size:12.5px;letter-spacing:.02em;padding:0;min-width:0}
+.cell.empty{color:#3d434c;font-weight:600}
+.cell.sel{outline:2px solid #fff;outline-offset:-2px}
+.cell.l1{color:#ffb27f}.cell.l2{color:#7fd6ff}.cell.l3{color:#c9a6ff}
+.cell.rep{height:24px;font-size:11px;color:var(--ink);font-weight:700}
+.cell.pc{background:#2e2620}
+#sbankWrap{padding:8px 10px}
+.sbank{display:grid;grid-template-columns:28px repeat(16,1fr);gap:4px}
+.sbank .rl{display:flex;align-items:center;justify-content:center;color:var(--dim);font-weight:800}
+.sbank .pad{height:38px}
+.pad.tgt{outline:2px dashed #ffffff88;outline-offset:-3px}
+.btn.armed{background:#3a2a1c;border-color:var(--acc);color:var(--acc)}
+.note{color:var(--dim);font-size:11px;line-height:1.5}
+/* ---- monitor overlay ---- */
+#mon{position:fixed;right:10px;top:62px;width:320px;max-height:70vh;display:none;flex-direction:column;gap:5px;padding:10px;z-index:8;box-shadow:0 10px 40px #000a}
+#mon.on{display:flex}
+.row{display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums}
+.row span:first-child{color:var(--dim)}
+.row b.ok{color:var(--ok)}.row b.warn{color:var(--warn)}.row b.bad{color:var(--bad)}
+#log{height:150px;overflow:auto;background:#0b0d10;border-radius:8px;padding:6px;font:10.5px/1.35 ui-monospace,Menlo,monospace;color:#aab;-webkit-user-select:text;user-select:text}
+.mrow{display:flex;gap:6px}.mrow .btn{height:32px;flex:1;min-width:0;padding:0 6px;font-size:11.5px}
+#startOv{position:fixed;inset:0;background:#0d0f12f2;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:9}
+#startOv h1{margin:0;font-size:22px;letter-spacing:.15em}
+#startOv p{margin:0;color:var(--dim);max-width:480px;text-align:center;line-height:1.6}
+#editMenu{position:fixed;display:none;flex-direction:column;gap:6px;padding:10px;z-index:8;width:290px;box-shadow:0 10px 40px #000a}
+#editMenu.on{display:flex}
+#editMenu .btn{height:auto;padding:8px 12px;text-align:left;display:flex;flex-direction:column;gap:2px}
+#editMenu .btn small{color:var(--dim);font-weight:500;font-size:10.5px;letter-spacing:0}
+#editMenu .btn.armed small{color:#ffb27f}
+#bEdit.armed{background:#3a2a1c;border-color:var(--acc);color:var(--acc)}
+#toast{position:fixed;left:50%;bottom:250px;transform:translateX(-50%);background:#000d;color:#fff;padding:8px 14px;border-radius:9px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:10}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+<div id="app">
+ <header>
+  <div class="logo">EMG<small>v0.2.1</small></div>
+  <div class="seg"><button class="btn on" id="tabSeq">PATTERN</button><button class="btn" id="tabSong">SONG</button></div>
+  <button class="btn big" id="bPlay">▶ PLAY</button>
+  <button class="btn big" id="bStop">■ STOP</button>
+  <button class="btn rec" id="bRec">● REC</button>
+  <button class="btn" id="bMetro">METRO</button>
+  <div class="bpm"><button class="btn" id="bpmDn">−</button><b id="bpmV">125</b><button class="btn" id="bpmUp">+</button></div>
+  <select id="qSel" title="quantize"><option value="24">Q 1/16</option><option value="12">Q 1/32</option><option value="1">Q OFF</option></select>
+  <div class="spacer"></div>
+  <button class="btn sm" id="bNew">NEW</button>
+  <button class="btn sm" id="bSave">SAVE</button>
+  <label class="btn sm" id="bLoad" for="fileIn" style="display:flex;align-items:center">LOAD</label><input id="fileIn" type="file" accept="application/json,.json" style="position:absolute;width:1px;height:1px;opacity:0;left:-9999px">
+  <button class="btn sm lampBtn" id="bMon"><span class="lamp" id="lamp"></span><span id="loadV">—</span></button>
+ </header>
+
+ <section class="page on" id="seqPage">
+  <div class="card" id="tracks"><div class="trkHead"><span>TRACKS</span><span>M&nbsp;&nbsp;&nbsp;&nbsp;S</span></div></div>
+  <div class="card" id="editor">
+   <div class="bar1">
+    <div class="seg" id="bankTabs"></div>
+    <div class="bank" id="bank"></div>
+   </div>
+   <div class="bar2">
+    <span class="lbl">LEN</span><div class="seg" id="lenSel"></div>
+    <span class="lbl" style="margin-left:6px">PAGE</span><div class="seg" id="pageSel"></div>
+    <button class="btn sm" id="bFollow">FOLLOW</button>
+    <div class="spacer"></div>
+    <span class="lbl" id="noteLenL">NOTE</span><div class="seg" id="nlSel"></div>
+    <button class="btn sm" id="octDnR">OCT −</button><button class="btn sm" id="octUpR">OCT +</button>
+    <button class="btn sm" id="bEdit">COPY / CLEAR ▾</button>
+   </div>
+   <div class="rollWrap"><canvas id="roll"></canvas></div>
+   <div class="rollWrap"><canvas id="lane"></canvas></div>
+  </div>
+ </section>
+
+ <section class="page" id="songPage">
+  <div class="card" id="songTop">
+   <div class="songStat" id="songStat"><b>READY</b><span>セルを選んで、下のパターンをタップすると書き込みます</span></div>
+   <button class="btn" id="sClear">CLEAR</button><button class="btn" id="sIns">INSERT</button><button class="btn" id="sDel">DELETE</button>
+   <span class="lbl" style="margin-left:6px">REPEAT</span><button class="btn" id="sRepDn">−</button><b id="sRepV" style="min-width:26px;text-align:center;font-size:16px">1</b><button class="btn" id="sRepUp">＋</button>
+  </div>
+  <div class="card" id="chainWrap"><div id="chain"></div></div>
+  <div class="card" id="sbankWrap"><div class="sbank" id="sbank"></div></div>
+ </section>
+
+ <section id="bottom">
+  <div class="card" id="bottomSide">
+   <div class="seg" style="width:100%"><button class="btn on" id="bKeys" style="flex:1">KEYS</button><button class="btn" id="bSound" style="flex:1">SOUND</button></div>
+   <div class="lbl" style="margin-top:4px">OCTAVE（ロールと連動）</div>
+   <div style="display:flex;gap:6px"><button class="btn sm" id="kOctDn" style="flex:1">−</button><b id="kOctV" style="align-self:center;min-width:20px;text-align:center">3</b><button class="btn sm" id="kOctUp" style="flex:1">+</button></div>
+   <div class="lbl" style="margin-top:4px">VELOCITY</div>
+   <div class="note" style="font-size:10.5px">鍵盤の下側ほど強く</div>
+  </div>
+  <div class="card" id="bottomMain">
+   <div id="keys"></div>
+   <div id="pads" style="display:none"></div>
+   <div id="sound" style="display:none"></div>
+  </div>
+ </section>
+</div>
+
+<div class="card" id="mon">
+ <div class="row"><span>経過時間</span><b id="mT">0:00:00</b></div>
+ <div class="row"><span>状態 / SR</span><b id="mS">-</b></div>
+ <div class="row"><span>エンジン負荷</span><b id="mL">-</b></div>
+ <div class="row"><span>出力遅延 現在/基準</span><b id="mLag">-</b></div>
+ <div class="row"><span>音切れ（時計の停止）</span><b id="mG">0</b></div>
+ <div class="row"><span>時計ずれ 累計</span><b id="mD">-</b></div>
+ <div class="row"><span>ボイス / ピーク</span><b id="mV">-</b></div>
+ <div class="row"><span>自動復旧 回数</span><b id="mR">0</b></div>
+ <div class="mrow"><button class="btn on" id="bAuto">自動復旧 ON</button><button class="btn" id="bNewCtx">NEW CTX</button><button class="btn" id="bRep">レポートをコピー</button></div>
+ <div id="log"></div>
+</div>
+<div class="card" id="editMenu">
+ <div class="lbl" style="padding:2px 4px 6px">コピー → 貼り付け先のパターンをタップ（複数可）</div>
+ <button class="btn" id="cpTrk">COPY TRACK<small>選択トラックのノート</small></button>
+ <button class="btn" id="cpPat">COPY PATTERN<small>全トラックのノート・音色・長さ</small></button>
+ <button class="btn" id="cpTone">COPY TONE<small>選択トラックの音色</small></button>
+ <button class="btn" id="toneAll">TONE → ALL<small>今の音色を全64パターン共通に（2回押し）</small></button>
+ <button class="btn" id="bClear">CLEAR TRACK<small>このパターンの選択トラックを消去（2回押し）</small></button>
+</div>
+<div id="toast"></div>
+<div id="startOv"><h1>EMG v0.2.1</h1><p>第2段階：シーケンサーとソング<br>タップして音声を開始します。</p><button class="btn big" id="bStart">START AUDIO</button></div>
+
+<script type="text/plain" id="wkSrc">
+class EMG extends AudioWorkletProcessor{
+ constructor(o){super();
+  const E=this.E=new WebAssembly.Instance(new WebAssembly.Module(o.processorOptions.wasm),{}).exports;
+  E.init(sampleRate);
+  this.L=new Float32Array(E.memory.buffer,E.out_l(),128);this.R=new Float32Array(E.memory.buffer,E.out_r(),128);
+  this.hp=(typeof performance!=="undefined"&&performance&&typeof performance.now==="function");
+  this.blk=0;this.busy=0;this.mx=0;this.alive=true;this.sq=0;
+  this.port.onmessage=e=>{const a=e.data;if(a&&a.b){for(let i=0;i<a.b.length;i++)this.m(a.b[i])}else this.m(a)};
+  this.port.postMessage({ready:1,hp:this.hp});
+ }
+ m(a){const E=this.E;switch(a[0]){
+  case "t":E.set_tempo(a[1]);break;
+  case "ms":E.set_master(a[1]);break;
+  case "mt":E.set_metro(a[1],a[2]);break;
+  case "ty":E.set_type(a[1],a[2]);break;
+  case "p":E.set_param(a[1],a[2],a[3]);break;
+  case "pv":E.set_live(a[1],a[2],a[3]);break;
+  case "mix":E.set_mix(a[1],a[2],a[3],a[4],a[5]);break;
+  case "nt":{const p=a[1],t=a[2],f=a[3],n=f.length/5;for(let i=0;i<n;i++){const k=i*5;E.stage(i,f[k],f[k+1],f[k+2],f[k+3],f[k+4])}E.commit(p,t,n);break}
+  case "pl":E.set_plen(a[1],a[2]);break;
+  case "pa":{const p=a[1],t=a[2],v=a[3];if(v){for(let i=0;i<v.length;i++)E.set_patch(p,t,i,v[i]);E.set_patch_flag(p,t,1)}else E.set_patch_flag(p,t,0);break}
+  case "row":E.set_row(a[1],a[2],a[3],a[4],a[5]);break;
+  case "sel":E.select_pat(a[1]);break;
+  case "pp":E.play_pattern(a[1]);break;
+  case "ps":E.play_song(a[1]);break;
+  case "jr":E.jump_row(a[1]);break;
+  case "stop":E.stop();break;
+  case "n":E.note_on(a[1],a[2],a[3]);break;
+  case "f":E.note_off(a[1],a[2]);break;
+  case "sq":this.sq=a[1];break;
+  case "kill":this.alive=false;break;}}
+ process(ins,outs){
+  if(!this.alive)return false;
+  const o=outs[0],l=o[0],n=l.length,E=this.E,hp=this.hp;
+  const t0=hp?performance.now():Date.now();
+  E.process(n);
+  if(n===128){l.set(this.L);if(o[1])o[1].set(this.R)}else{l.set(this.L.subarray(0,n));if(o[1])o[1].set(this.R.subarray(0,n))}
+  const dt=(hp?performance.now():Date.now())-t0;this.busy+=dt;if(dt>this.mx)this.mx=dt;
+  if(++this.blk>=12){const bms=n/sampleRate*1000;const tp=[];for(let t=0;t<12;t++)tp.push(E.take_tpeak(t));
+   this.port.postMessage({pos:E.get_pos(),fr:E.get_frames()-n,bz:this.busy,sp:this.blk*bms,mx:hp?this.mx/bms:-1,v:E.get_voices(),pk:E.take_peak(),pl:E.get_playing(),
+    md:E.get_mode(),row:E.get_row(),rep:E.get_rep(),ln:[E.get_lane(0),E.get_lane(1),E.get_lane(2)],q:E.get_queued(),rs:E.get_rowstart(),rl:E.get_rowlen(),bd:E.get_bounds(),end:E.get_ended(),tp,sq:this.sq});
+   this.blk=0;this.busy=0;this.mx=0}
+  return true}}
+registerProcessor("emg-engine",EMG);
+</script>
+<script>
+"use strict";
+const WASM_B64="AGFzbQEAAAABZRJgAX0AYAJ/fQBgAn9/AGADf399AGAFf319f38AYAZ/f39/f38AYAN/f38AYAR/f399AGAFf39/f38AYAF/AGAAAGABfwF/YAR/f31/AGAAAX9gAAF8YAJ/fwF9YAF/AX1gAAF9Ay4tAAABAAIDAwQFBgIHBggJCgkKCwkKBgcMAg0NDg4NDQ0NCw0ODQ0NCw8QEQ0JBAUBcAEBAQUEAQFAQAYJAX8BQfDvmwELB90DKgZtZW1vcnkCAARpbml0AAAJc2V0X3RlbXBvAAEJc2V0X21ldHJvAAIKc2V0X21hc3RlcgADCHNldF90eXBlAAQJc2V0X3BhcmFtAAUIc2V0X2xpdmUABgdzZXRfbWl4AAcFc3RhZ2UACAZjb21taXQACQhzZXRfcGxlbgAKCXNldF9wYXRjaAALDnNldF9wYXRjaF9mbGFnAAwHc2V0X3JvdwANCnNlbGVjdF9wYXQADgxwbGF5X3BhdHRlcm4AEAlwbGF5X3NvbmcAEghqdW1wX3JvdwATBHN0b3AAFAdub3RlX29uABUIbm90ZV9vZmYAGAVvdXRfbAAZBW91dF9yABoHZ2V0X3BvcwAbCmdldF9mcmFtZXMAHAtnZXRfcGxheWluZwAdCGdldF9tb2RlAB4HZ2V0X3JvdwAfB2dldF9yZXAAIAhnZXRfbGFuZQAhCmdldF9xdWV1ZWQAIgxnZXRfcm93c3RhcnQAIwpnZXRfcm93bGVuACQKZ2V0X2JvdW5kcwAlCWdldF9lbmRlZAAmCWdldF9vd25lcgAnCWdldF9wYXJhbQAoCnRha2VfdHBlYWsAKQl0YWtlX3BlYWsAKgpnZXRfdm9pY2VzACsHcHJvY2VzcwAsCqHiAS33CQEDf0EAIAA4ApCMgIAAQQBDAACAPyAAlTgClIyAgABB4NV+IQEDQCABQYDBgYAAakGAgID4AzYCACABQYy4gYAAakKAgID4g4CAgD83AgAgAUGEuIGAAGpCgICA+IOAgIA/NwIAIAFB/LeBgABqQoCAgPiDgICAPzcCACABQfS3gYAAakKAgID4g4CAgD83AgAgAUHst4GAAGpCgICA+IOAgIA/NwIAIAFB5LeBgABqQoCAgPiDgICAPzcCACABQdy3gYAAakKAgID4g4CAgD83AgAgAUHUt4GAAGpCgICA+IOAgIA/NwIAIAFBzLeBgABqQoCAgPiDgICAPzcCACABQcS3gYAAakKAgID4g4CAgD83AgAgAUG8t4GAAGpCgICA+IOAgIA/NwIAIAFBtLeBgABqQoCAgPiDgICAPzcCACABQay3gYAAakKAgID4g4CAgD83AgAgAUGkt4GAAGpCgICA+IOAgIA/NwIAIAFBnLeBgABqQoCAgPiDgICAPzcCACABQZS3gYAAakKAgID4g4CAgD83AgAgAUGQt4GAAGpBADYCACABQYjBgYAAakGAgID4AzYCACABQfzAgYAAakGAgID4AzYCACABQbTEgYAAakGAgID4AzYCACABQYTBgYAAakGAgID4AzYCACABQbzEgYAAakGAgID4AzYCACABQbDEgYAAakGAgID4AzYCACABQbjEgYAAakGAgID4AzYCACABQZS4gYAAakLNmbP6AzcCACABQcDEgYAAakJ/NwMAIAFByMSBgABqQn83AwAgAUHQxIGAAGpCfzcDACABQdjEgYAAakJ/NwMAIAFBmA5qIgENAAtBgHohAUHQt4GAACECQZC3gYAAIQMDQCACQQA7AQAgA0EQOgAAIAFB0MmBgABqQQA6AAAgAUHRyYGAAGpBADoAACABQdLJgYAAakEAOgAAIAFB08mBgABqQQA6AAAgAkECakIANwEAIAFB1MmBgABqQQA6AAAgAUHVyYGAAGpBADoAACABQdbJgYAAakEAOgAAIAFB18mBgABqQQA6AAAgAkEKakIANwEAIAFB2MmBgABqQQA6AAAgAUHZyYGAAGpBADoAACACQRJqQQA2AQAgAUHayYGAAGpBADoAACACQRZqQQA7AQAgAUHbyYGAAGpBADoAACADQQFqIQMgAkEYaiECIAFBDGoiAQ0AC0GAfCEBA0AgAUHSzYGAAGpB/4N8NgEAIAFB1s2BgABqQf8BOgAAIAFB0M2BgABqQf//AzsBACABQdrNgYAAakH/AToAACABQdfNgYAAakEBOgAAIAFB3s2BgABqQf8BOgAAIAFB282BgABqQQE6AAAgAUHYzYGAAGpB//8DOwEAIAFB382BgABqQQE6AAAgAUHczYGAAGpB//8DOwEAIAFBEGoiAQ0AC0EAIAC7RAAAAAAAAE5AokEAKgKYjICAALtEAAAAAAAAWECiozkDoIyAgAACQAJAQwAA/MJDAAD8QkM7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ACADQbjOgYAAaiAGQZyNgIAAaioCADgCACADQbzOgYAAaiAGQaCNgIAAaioCADgCACADQcDOgYAAaiAGQaSNgIAAaioCADgCACADQcTOgYAAaiAGQaiNgIAAaioCADgCACADQcjOgYAAaiAGQayNgIAAaioCADgCACADQczOgYAAaiAGQbCNgIAAaioCADgCACADQdDOgYAAaiAGQbSNgIAAaioCADgCACADQdTOgYAAaiAGQbiNgIAAaioCADgCACADQdjOgYAAaiAGQbyNgIAAaioCADgCACADQdzOgYAAaiAGQcCNgIAAaioCADgCACADQeDOgYAAaiAGQcSNgIAAaioCADgCACADQeTOgYAAaiAGQciNgIAAaioCADgCACADQejOgYAAaiAGQcyNgIAAaioCADgCACADQezOgYAAaiAGQdCNgIAAaioCADgCACADQfDOgYAAaiAGQdSNgIAAaioCADgCACADQfTOgYAAaiAGQdiNgIAAaioCADgCACADQfjOgYAAaiAGQdyNgIAAaioCADgCACADQfzOgYAAaiAGQeCNgIAAaioCADgCACADQYDPgYAAaiAGQeSNgIAAaioCADgCACAFQQE6AAAgA0GEz4GAAGogBkHojYCAAGoqAgA4AgAgA0GIz4GAAGogBkHsjYCAAGoqAgA4AgAgA0GMz4GAAGogBkHwjYCAAGoqAgA4AgALIARBgAxsIABBB3RqIAFBAnRqQZDOgYAAaiACOAIACwurAQEBfwJAIABBC0sNACABQR9LDQAgAEGYDmxB8IyAgABqIgMgAUECdGpBBGogAjgCAAJAAkACQCADKAIAQX5qDgIAAQMLAkACQCABDgIAAQQLIABBmA5sQeCWgIAAaiEADAILIABBmA5sQeiWgIAAaiEADAELAkACQCABDgIAAQMLIABBmA5sQZSagIAAaiEADAELIABBmA5sQZyagIAAaiEACyAAIAI4AgALC1AAAkAgAEELSw0AIABBmA5sIgBB/Y2AgABqIARBAEc6AAAgAEH8jYCAAGogA0EARzoAACAAQfiNgIAAaiACOAIAIABB9I2AgABqIAE4AgALC1gAAkAgAEH/AksNACAAQQN0IgBBls6HgABqIAU6AAAgAEGUzoeAAGogBDsBACAAQZPOh4AAaiADOgAAIABBks6HgABqIAI6AAAgAEGQzoeAAGogATsBAAsLzh8BCn8jgICAgABBEGshAwJAIABBP0sNACABQQtLDQAgAkGAAyACQYADSBsiBEEASiEFQQIhBgJAIAJBAkgNAEGQzoeAACEHQQEhCANAIAMgCEEDdCIJQZLOh4AAaigBADYCCCADIAlBls6HgABqLwEAOwEMIAlBkM6HgABqLwEAIgpB//8DcSELIAchCSAGIQwCQAJAA0AgCS8BACALTQ0BIAlBCGogCSkDADcDACAJQXhqIQkgDEF/aiIMQQFKDQALQQAhCQwBCyAMQX9qIQkLIAlBA3QiCUGQzoeAAGogCjsBACAJQZLOh4AAaiADKAIINgEAIAlBls6HgABqIAMvAQw7AQAgB0EIaiEHIAZBAWohBiAIQQFqIgggBEcNAAsLIARBACAFGyEIAkAgAkEBSA0AIARBA3EhC0EAIQMCQCACQQRIDQAgAEGAoAJsIAFBgBhsakGQ5oeAAGohBiAEQQN0QeAfcSEHQQAhCUEAIQMDQCAGIAlqIgwgCUGQzoeAAGopAwA3AwAgDEEIaiAJQZjOh4AAaikDADcDACAMQRBqIAlBoM6HgABqKQMANwMAIAxBGGogCUGozoeAAGopAwA3AwAgA0EEaiEDIAcgCUEgaiIJRw0ACwsgC0UNACAAQYCgAmwgAUGAGGxqQZDmh4AAaiEMIANBA3QhCQNAIAwgCWogCUGQzoeAAGopAwA3AwAgCUEIaiEJIAtBf2oiCw0ACwsgAEEYbCABQQF0akHQt4GAAGogCDsBAAJAAkBBAC0AkOaXgQANAEEAKAK8jICAACELQQAoAriMgIAAIQxBACgCtIyAgAAhCQwBC0EAKAK0jICAACEJAkAgAkEASg0AAkAgCSAARw0AIAFBAnRBsOaXgQBqQQA2AgALAkBBACgCuIyAgAAiDCAARw0AIAFBAnRB4OaXgQBqQQA2AgALQQAoAryMgIAAIgsgAEcNASABQQJ0QZDnl4EAakEANgIADAELQQApA5jml4EAQQApA6Dml4EAfachBwJAIAkgAEcNACAAQYCgAmwgAUGAGGxqQZDmh4AAaiEMIAcgAEGQt4GAAGotAAAiC0EYbEGAAyALG28hA0EAIQsCQANAIAMgDC8BAEwNASAMQQhqIQwgBCALQQFqIgtHDQALIAQhCwsgAUECdEGw5peBAGogCzYCAAsCQEEAKAK4jICAACIMIABHDQAgAEGAoAJsIAFBgBhsakGQ5oeAAGohCyAHIABBkLeBgABqLQAAIgNBGGxBgAMgAxtvIQZBACEDAkADQCAGIAsvAQBMDQEgC0EIaiELIAQgA0EBaiIDRw0ACyAEIQMLIAFBAnRB4OaXgQBqIAM2AgALQQAoAryMgIAAIgsgAEcNACAAQYCgAmwgAUGAGGxqQZDmh4AAaiEDIAcgAEGQt4GAAGotAAAiBkEYbEGAAyAGG28hB0EAIQYCQANAIAcgAy8BAEwNASADQQhqIQMgBCAGQQFqIgZHDQALIAQhBgsgAUECdEGQ55eBAGogBjYCAAsgCyAMIAxBAEgiBxshAwJAAkACQAJAAkACQCAJQQBIIgYNACADIAkgBhshAyAJIQYCQCAJQRhsIgdB0LeBgABqLwEADQACQCAMQQBIDQAgDEEYbEHQt4GAAGovAQANAwsCQCALQQBIDQAgCyEGIAtBGGxB0LeBgABqLwEADQELIAMhBgtBACAGNgLgzYGAACAJIQYgB0HSt4GAAGovAQANBCAMQQBIDQMMAgsCQCAHDQAgDEEYbCIJQdC3gYAAai8BACEGAkAgC0F/Sg0AQQAgDCADIAZB//8DcRs2AuDNgYAAQQAgDCADIAlB0reBgABqLwEAGzYC5M2BgABBACAMIAMgCUHUt4GAAGovAQAbNgLozYGAAEEAIAwgAyAJQda3gYAAai8BABs2AuzNgYAAQQAgDCADIAlB2LeBgABqLwEAGzYC8M2BgABBACAMIAMgCUHat4GAAGovAQAbNgL0zYGAAEEAIAwgAyAJQdy3gYAAai8BABs2AvjNgYAAQQAgDCADIAlB3reBgABqLwEAGzYC/M2BgABBACAMIAMgCUHgt4GAAGovAQAbNgKAzoGAAEEAIAwgAyAJQeK3gYAAai8BABs2AoTOgYAAQQAgDCADIAlB5LeBgABqLwEAGzYCiM6BgAAgDCADIAlB5reBgABqLwEAGyEJDAYLIAwhCQJAIAZB//8DcQ0AIAsgAyALQRhsQdC3gYAAai8BABshCQtBACAJNgLgzYGAACAMIQkCQCAMQRhsIgZB0reBgABqLwEADQAgCyADIAtBGGxB0reBgABqLwEAGyEJC0EAIAk2AuTNgYAAIAwhCQJAIAZB1LeBgABqLwEADQAgCyADIAtBGGxB1LeBgABqLwEAGyEJC0EAIAk2AujNgYAAIAwhCQJAIAxBGGwiBkHWt4GAAGovAQANACALIAMgC0EYbEHWt4GAAGovAQAbIQkLQQAgCTYC7M2BgAAgDCEJAkAgBkHYt4GAAGovAQANACALIAMgC0EYbEHYt4GAAGovAQAbIQkLQQAgCTYC8M2BgAAgDCEJAkAgDEEYbCIGQdq3gYAAai8BAA0AIAsgAyALQRhsQdq3gYAAai8BABshCQtBACAJNgL0zYGAACAMIQkCQCAGQdy3gYAAai8BAA0AIAsgAyALQRhsQdy3gYAAai8BABshCQtBACAJNgL4zYGAACAMIQkCQCAMQRhsIgZB3reBgABqLwEADQAgCyADIAtBGGxB3reBgABqLwEAGyEJC0EAIAk2AvzNgYAAIAwhCQJAIAZB4LeBgABqLwEADQAgCyADIAtBGGxB4LeBgABqLwEAGyEJC0EAIAk2AoDOgYAAIAwhCQJAIAxBGGwiBkHit4GAAGovAQANACALIAMgC0EYbEHit4GAAGovAQAbIQkLQQAgCTYChM6BgAAgDCEJAkAgBkHkt4GAAGovAQANACALIAMgC0EYbEHkt4GAAGovAQAbIQkLQQAgCTYCiM6BgAAgDCEJIAxBGGxB5reBgABqLwEADQUgCyADIAtBGGxB5reBgABqLwEAGyEJDAULAkAgC0F/Sg0AQQAgAzYCiM6BgABBACADNgKEzoGAAEEAIAM2AoDOgYAAQQAgAzYC/M2BgABBACADNgL4zYGAAEEAIAM2AvTNgYAAQQAgAzYC8M2BgABBACADNgLszYGAAEEAIAM2AujNgYAAQQAgAzYC5M2BgABBACADNgLgzYGAACADIQkMBQtBACALIAMgC0EYbCIJQdC3gYAAai8BABs2AuDNgYAAQQAgCyADIAlB0reBgABqLwEAGzYC5M2BgABBACALIAMgCUHUt4GAAGovAQAbNgLozYGAAEEAIAsgAyAJQda3gYAAai8BABs2AuzNgYAAQQAgCyADIAlB2LeBgABqLwEAGzYC8M2BgABBACALIAMgCUHat4GAAGovAQAbNgL0zYGAAEEAIAsgAyAJQdy3gYAAai8BABs2AvjNgYAAQQAgCyADIAlB3reBgABqLwEAGzYC/M2BgABBACALIAMgCUHgt4GAAGovAQAbNgKAzoGAAEEAIAsgAyAJQeK3gYAAai8BABs2AoTOgYAAQQAgCyADIAlB5LeBgABqLwEAGzYCiM6BgAAgCyADIAlB5reBgABqLwEAGyEJDAQLQQAgDDYC4M2BgAAgCSEGIAlBGGxB0reBgABqLwEADQILIAwhBiAMQRhsQdK3gYAAai8BAA0BCwJAIAtBAEgNACALIQYgC0EYbEHSt4GAAGovAQANAQsgAyEGC0EAIAY2AuTNgYAAIAkhBgJAAkACQAJAAkAgCUEYbCIHQdS3gYAAai8BAA0AAkAgDEEASA0AIAxBGGxB1LeBgABqLwEADQILAkAgC0EASA0AIAshBiALQRhsQdS3gYAAai8BAA0BCyADIQYLQQAgBjYC6M2BgAAgCSEGIAdB1reBgABqLwEADQMgDEEASA0CDAELQQAgDDYC6M2BgAAgCSEGIAlBGGxB1reBgABqLwEADQILIAwhBiAMQRhsQda3gYAAai8BAA0BCwJAIAtBAEgNACALIQYgC0EYbEHWt4GAAGovAQANAQsgAyEGC0EAIAY2AuzNgYAAIAkhBgJAAkACQAJAAkAgCUEYbCIHQdi3gYAAai8BAA0AAkAgDEEASA0AIAxBGGxB2LeBgABqLwEADQILAkAgC0EASA0AIAshBiALQRhsQdi3gYAAai8BAA0BCyADIQYLQQAgBjYC8M2BgAAgCSEGIAdB2reBgABqLwEADQMgDEEASA0CDAELQQAgDDYC8M2BgAAgCSEGIAlBGGxB2reBgABqLwEADQILIAwhBiAMQRhsQdq3gYAAai8BAA0BCwJAIAtBAEgNACALIQYgC0EYbEHat4GAAGovAQANAQsgAyEGC0EAIAY2AvTNgYAAIAkhBgJAAkACQAJAAkAgCUEYbCIHQdy3gYAAai8BAA0AAkAgDEEASA0AIAxBGGxB3LeBgABqLwEADQILAkAgC0EASA0AIAshBiALQRhsQdy3gYAAai8BAA0BCyADIQYLQQAgBjYC+M2BgAAgCSEGIAdB3reBgABqLwEADQMgDEEASA0CDAELQQAgDDYC+M2BgAAgCSEGIAlBGGxB3reBgABqLwEADQILIAwhBiAMQRhsQd63gYAAai8BAA0BCwJAIAtBAEgNACALIQYgC0EYbEHet4GAAGovAQANAQsgAyEGC0EAIAY2AvzNgYAAIAkhBgJAAkACQAJAAkAgCUEYbCIHQeC3gYAAai8BAA0AAkAgDEEASA0AIAxBGGxB4LeBgABqLwEADQILAkAgC0EASA0AIAshBiALQRhsQeC3gYAAai8BAA0BCyADIQYLQQAgBjYCgM6BgAAgCSEGIAdB4reBgABqLwEADQMgDEEASA0CDAELQQAgDDYCgM6BgAAgCSEGIAlBGGxB4reBgABqLwEADQILIAwhBiAMQRhsQeK3gYAAai8BAA0BCwJAIAtBAEgNACALIQYgC0EYbEHit4GAAGovAQANAQsgAyEGC0EAIAY2AoTOgYAAIAkhBgJAAkACQAJAIAlBGGwiB0Hkt4GAAGovAQANAAJAIAxBAEgNACAMQRhsQeS3gYAAai8BAA0CCwJAIAtBAEgNACALIQYgC0EYbEHkt4GAAGovAQANAQsgAyEGC0EAIAY2AojOgYAAIAdB5reBgABqLwEADQMgDEEASA0CDAELQQAgDDYCiM6BgAAgCUEYbEHmt4GAAGovAQANAgsgDCEJIAxBGGxB5reBgABqLwEADQELAkAgC0EATg0AIAMhCQwBCyALIQkgC0EYbEHmt4GAAGovAQANACADIQkLQQAgCTYCjM6BgAALC0wAAkAgAEE/Sw0AIAFBf2pB/wBLDQAgAEGQt4GAAGogAToAAEEAKAK0jICAACAARw0AQQAtAJDml4EADQBBACABQRhsNgLAjICAAAsLOAACQCAAQT9LDQAgAUELSw0AIAJBH0sNACAAQYAMbCABQQd0aiACQQJ0akGQzoGAAGogAzgCAAsLKgACQCAAQT9LDQAgAUELSw0AIABBDGwgAWpB0MOBgABqIAJBAEc6AAALC14AAkAgAEH/AEsNACAAQQJ0IgBB0smBgABqIAM6AAAgAEHRyYGAAGogAjoAACAAQdDJgYAAaiABOgAAIABB08mBgABqIARB4wAgBEHjAEgbIgBBASAAQQFKGzoAAAsLdgACQCAAQT9LDQACQEEALQCQ5peBAEUNAEEALQDA55eBAEEBcQ0AQQBBfyAAQQAoAsTnl4EAIABGGzYCxIyAgAAPC0EAIAA2AsTnl4EAQQAgADYCtIyAgABBAEJ/NwK4jICAAEEAQQA6AMDnl4EAEI+AgIAACwv9CwIPfwF9QQAhAAJAAkACQEEAKAK0jICAACIBQX9KDQACQEEAKAK4jICAACICQX9MDQBBgAMhACACQT9LDQAgAkGQt4GAAGotAAAiAEEYbEGAAyAAGyEACwJAQQAoAryMgIAAIgNBAEgNACADQT9LDQJBgAMhAiAAIANBkLeBgABqLQAAQf8BcSIDQRhsIgQgBEGAAyADGyAATCIEGyEAIAQNACADRQ0DCyAAQYADIABBAEobIQIMAgtBgAMhAiABQT9LDQEgAUGQt4GAAGotAAAiAEUNASAAQRhsIQIMAQsgAEGAAyAAQYADShshAgtBAEIANwO455eBAEEAQgA3A7Dnl4EAQQBCADcDqOeXgQBBAEIANwOg55eBAEEAQgA3A5jnl4EAQQBCADcDkOeXgQBBAEIANwOI55eBAEEAQgA3A4Dnl4EAQQBCADcD+OaXgQBBAEIANwPw5peBAEEAQgA3A+jml4EAQQBCADcD4OaXgQBBAEIANwPY5peBAEEAQgA3A9Dml4EAQQBCADcDyOaXgQBBAEIANwPA5peBAEEAQgA3A7jml4EAQQBCADcDsOaXgQBBACACNgLAjICAAEEAKAK8jICAACIFQQAoAriMgIAAIgYgBkEASCIHGyABIAFBAEgiCBshCSABQRhsQdC3gYAAaiEKIAVBGGxB0LeBgABqIQsgBkEYbEHQt4GAAGohDEHgzYGAACEDQeDVfiEAQZDOgYAAIQ1B0MOBgAAhBANAAkACQAJAAkACQCAIDQAgASECIAovAQANAQsCQCAHDQAgBiECIAwvAQANAQsgBUEASA0BIAUhAiALLwEARQ0BCyADIAI2AgAMAQsgAyAJNgIAIAkhAiAJQQBIDQELIAQgAkEMbGotAABFDQAgAEGQt4GAAGooAgAiDkUNACAAQZS3gYAAaiANIAJBgAxsaiICKgIAIg84AgACQAJAAkACQCAOQX5qDgIBAgALIABBmLeBgABqIAJBBGoqAgA4AgAMAgsgAEGAwYGAAGogDzgCACAAQYjBgYAAaiACQQRqKgIAIg84AgAgAEGYt4GAAGogDzgCAAwBCyAAQbTEgYAAaiAPOAIAIABBvMSBgABqIAJBBGoqAgAiDzgCACAAQZi3gYAAaiAPOAIACyAAQZy3gYAAaiACQQhqKgIAOAIAIABBoLeBgABqIAJBDGoqAgA4AgAgAEGkt4GAAGogAkEQaioCADgCACAAQai3gYAAaiACQRRqKgIAOAIAIABBrLeBgABqIAJBGGoqAgA4AgAgAEGwt4GAAGogAkEcaioCADgCACAAQbS3gYAAaiACQSBqKgIAOAIAIABBuLeBgABqIAJBJGoqAgA4AgAgAEG8t4GAAGogAkEoaioCADgCACAAQcC3gYAAaiACQSxqKgIAOAIAIABBxLeBgABqIAJBMGoqAgA4AgAgAEHIt4GAAGogAkE0aioCADgCACAAQcy3gYAAaiACQThqKgIAOAIAIABB0LeBgABqIAJBPGoqAgA4AgAgAEHUt4GAAGogAkHAAGoqAgA4AgAgAEHYt4GAAGogAkHEAGoqAgA4AgAgAEHct4GAAGogAkHIAGoqAgA4AgAgAEHgt4GAAGogAkHMAGoqAgA4AgAgAEHkt4GAAGogAkHQAGoqAgA4AgAgAEHot4GAAGogAkHUAGoqAgA4AgAgAEHst4GAAGogAkHYAGoqAgA4AgAgAEHwt4GAAGogAkHcAGoqAgA4AgAgAEH0t4GAAGogAkHgAGoqAgA4AgAgAEH4t4GAAGogAkHkAGoqAgA4AgAgAEH8t4GAAGogAkHoAGoqAgA4AgAgAEGAuIGAAGogAkHsAGoqAgA4AgAgAEGEuIGAAGogAkHwAGoqAgA4AgAgAEGIuIGAAGogAkH0AGoqAgA4AgAgAEGMuIGAAGogAkH4AGoqAgA4AgAgAEGQuIGAAGogAkH8AGoqAgA4AgALIARBAWohBCANQYABaiENIAtBAmohCyADQQRqIQMgDEECaiEMIApBAmohCiAAQZgOaiIADQALC3EAEJGAgIAAQQAgADYCxOeXgQBBAEF/NgLEjICAAEEAIAA2ArSMgIAAQQBCfzcCuIyAgABBAEEAOgDA55eBABCPgICAAEEAQgA3A6Dml4EAQQBCADcDmOaXgQBBAEIANwPQzYGAAEEAQQE6AJDml4EAC9YCAQN/QQAhAANAIABBsJaAgABqQQA2AgAgAEHUloCAAGpBADoAAAJAIABBlJeAgABqIgEoAgAiAkUNACACQQNKDQAgAUEENgIACwJAIABByJeAgABqIgEoAgAiAkUNACACQQNKDQAgAUEENgIACwJAIABB/JeAgABqIgEoAgAiAkUNACACQQNKDQAgAUEENgIACwJAIABBsJiAgABqIgEoAgAiAkUNACACQQNKDQAgAUEENgIACwJAIABB5JiAgABqIgEoAgAiAkUNACACQQNKDQAgAUEENgIACwJAIABBmJmAgABqIgEoAgAiAkUNACACQQNKDQAgAUEENgIACwJAIABBzJmAgABqIgEoAgAiAkUNACACQQNKDQAgAUEENgIACwJAIABBgJqAgABqIgEoAgAiAkUNACACQQNKDQAgAUEENgIACyAAQZgOaiIAQaCqAUcNAAsLjAIBAn9BfyEBAkAgAEH/AEoNACAAQQAgAEEAShsiAUECdEHQyYGAAGohAAJAA0ACQCABQf8ASw0AIAAsAAAiAkF/Sg0CIABBAWosAABBf0oNAiAAQQJqLAAAQX9KDQILIABBBGohACABQQFqIgFBgAFHDQALQX8PCxCRgICAAEEAIAE2Atjvl4EAQQBBAToAwOeXgQBBAEEBNgLYjICAAEEAIAI2ArSMgIAAQQAgAEEBaiwAADYCuIyAgABBACAAQQJqLAAANgK8jICAABCPgICAAEEAQgA3A6Dml4EAQQBCADcDmOaXgQBBAEIANwPQzYGAAEEAQX82AsiMgIAAQQBBAToAkOaXgQALIAELVgEBfwJAIABB/wBLDQBBAC0AwOeXgQBBAXFFDQACQCAAQQJ0QdDJgYAAaiIBLAAAQX9KDQAgASwAAUF/Sg0AIAEsAAJBAEgNAQtBACAANgLIjICAAAsLKQBBAEF/NgLEjICAAEEAQX82AsiMgIAAQQBBADoAkOaXgQAQkYCAgAALgAQCAX0CfwJAIABBC0sNACACsiEDIABBmA5sIgRB8IyAgABqIQICQEEALQCQ5peBAEUNACACIARBgJuAgABqIgQoAgBBAnRqQbANaiABNgIAIAQgBCgCACIFQQFqQQdxNgIAIAIgBUEDdGpB0A1qQQApA5jml4EANwMACyADQwAA/kKVIQMCQAJAAkAgAigCAEF/ag4DAAECAwsgAEGYDmwiAEGAjoCAAGogAEH0jICAAGogASADEJaAgIAADwsgAEGYDmwiAEHMloCAAGogATYCACAAQdiWgIAAaiADOAIAIABB0JaAgABqQQA2AgAgAEG4loCAAGpBADYCACAAQbSWgIAAakGAgID8AzYCACAAQdSWgIAAakEBOwEAIABBsJaAgABqQYCAgPwDNgIAAkACQEMAAPzCQwAA/EIgAbJDAACKwpJDq6qqPZQiAyADQwAA/EJeGyADQwAA/MJdGyIDi0MAAABPXUUNACADqCEBDAELQYCAgIB4IQELIABBqJaAgABqIAMgASADIAGyXWsiAbKTIgMgAyADIANDPJUdPJRDRFhjPZKUQ/D9dT6SlEMYcjE/kpRDAACAP5IgAUEXdEGAgID8A2q+lEMAANxDlCIDOAIAIABBpJaAgABqIAM4AgAPCyAAQZgObEHsloCAAGogASADQQAQl4CAgAALC+cNBAF/An0CfwF9AkAgAkELSw0AIAAgAkHYAGxqIgRBAToAVCABKgIEIQUgASoCACEGIAQgAzgCRCAEQYCAgPwDNgIIIARBgICA/AM2AhAgBCACQSxsIgdBqIiAgABqKAIANgJIIAQgB0GIiICAAGoqAgA4AiACQAJAQwAA/MJDAAD8QiAGQwAAAL+SIgMgA5IiAyADQwAA/EJeGyADQwAA/MJdGyIDi0MAAABPXUUNACADqCEIDAELQYCAgIB4IQgLIAQgB0GEiICAAGoqAgAgAyAIIAMgCLJdayIIspMiAyADIAMgA0M8lR08lENEWGM9kpRD8P11PpKUQxhyMT+SlEMAAIA/kiAIQRd0QYCAgPwDar6UIgaUOAIcIAQgB0GAiICAAGoqAgAgBpQ4AhgCQAJAQwAA/MJDAAD8QiAFQwAAAL+SQwAAIECUIgMgA0MAAPxCXhsgA0MAAPzCXRsiA4tDAAAAT11FDQAgA6ghBwwBC0GAgICAeCEHCyADIAcgAyAHsl1rIgeykyIDIAMgAyADQzyVHTyUQ0RYYz2SlEPw/XU+kpRDGHIxP5KUQwAAgD+SIQMgB0EXdEGAgID8A2q+IQlDCtcjPCEFAkBBuwIgAnZBAXFFDQAgAkEsbEGMiICAAGoqAgAhBQsgAyAJlCEJIARBADYCACAAIAJB2ABsaiIEQQA2AgQgBCACQSxsIgdBlIiAgABqKQIANwIkAkACQEMAAPzCQwAA/EJDO6q4v0EAKgKQjICAACIDQxe30TggBSAFQxe30ThdG5SVIgUgBUMAAPxCXhsgBUMAAPzCXRsiBYtDAAAAT11FDQAgBaghCAwBC0GAgICAeCEICyAEIAUgCCAFIAiyXWsiCLKTIgUgBSAFIAVDPJUdPJRDRFhjPZKUQ/D9dT6SlEMYcjE/kpRDAACAP5IgCEEXdEGAgID8A2q+lDgCFAJAAkBDAAD8wkMAAPxCQzuquL8gA0MXt9E4IAkgB0GQiICAAGoqAgCUIgUgBUMXt9E4XRuUlSIFIAVDAAD8Ql4bIAVDAAD8wl0bIgWLQwAAAE9dRQ0AIAWoIQgMAQtBgICAgHghCAsgBCAFIAggBSAIsl1rIgiykyIFIAUgBSAFQzyVHTyUQ0RYYz2SlEPw/XU+kpRDGHIxP5KUQwAAgD+SIAhBF3RBgICA/ANqvpQ4AgwCQAJAQwAA/MJDAAD8QiABKgIIQwAAAL+SQwAAwD+UIgUgBUMAAPxCXhsgBUMAAPzCXRsiBYtDAAAAT11FDQAgBaghBAwBC0GAgICAeCEECwJAAkBBACoClIyAgABD0lN7QiADQz0K1z6UIgkgBiAHQZyIgIAAaioCAJQgBSAEIAUgBLJdayIEspMiBSAFIAUgBUM8lR08lENEWGM9kpRD8P11PpKUQxhyMT+SlEMAAIA/kiAEQRd0QYCAgPwDar6UlCIFQwAAekQgBUMAAAAAXhsiBSAJIAVdG0PbD0lAlCAFQwAAoEFdG5RDg/kiPpQiBkMAAAA/kiIFi0MAAABPXUUNACAFqCEEDAELQYCAgIB4IQQLAkACQCAGIAQgBSAEsl1rspMiBUMAAIA+XkUNAEMAAAA/IAWTIQUMAQsgBUMAAIC+XUUNAEMAAAC/IAWTIQULAkACQCAGQwAAgD6SIglDAAAAP5IiBotDAAAAT11FDQAgBqghBAwBC0GAgICAeCEECwJAAkAgCSAEIAYgBLJda7KTIgZDAACAPl5FDQBDAAAAPyAGkyEGDAELIAZDAACAvl1FDQBDAAAAvyAGkyEGC0MAAIA/IQkgACACQdgAbGoiBCAFQ9sPyUCUIgUgBSAFlCIFIAUgBSAFQ464ODaUQ/ELULmSlEOIiAg8kpRDq6oqvpKUQwAAgD+SlCAGQ9sPyUCUIgUgBSAFlCIFIAUgBSAFQ464ODaUQ/ELULmSlEOIiAg8kpRDq6oqvpKUQwAAgD+SlJU4AjgCQCACRQ0AIAJBLGxBoIiAgABqKgIAIQkLAkACQCADQ1g5NDyUIgWLQwAAAE9dRQ0AIAWoIQEMAQtBgICAgHghAQsgBCABNgJQIARBA0EAIAJBAkYbNgJMIARDAACAPyAJlTgCPCAEIAJBLGxBpIiAgABqKgIAOAJAIAJBBkcNAAJAAkBDAAD8wkMAAPxCQzuquL8gA0MK16M8lJUiAyADQwAA/EJeGyADQwAA/MJdGyIDi0MAAABPXUUNACADqCECDAELQYCAgIB4IQILIABB9ARqIAMgAiADIAKyXWsiArKTIgMgAyADIANDPJUdPJRDRFhjPZKUQ/D9dT6SlEMYcjE/kpRDAACAP5IgAkEXdEGAgID8A2q+lDgCAAsLvwgBC38CQAJAIAAoAigiBA0AQQAhBQwBCwJAIABB3ABqKAIAIgYNAEEBIQUMAQsCQCAAQZABaigCACIHDQBBAiEFDAELAkAgAEHEAWooAgAiCA0AQQMhBQwBCwJAIABB+AFqKAIAIgkNAEEEIQUMAQsCQCAAQawCaigCACIKDQBBBSEFDAELAkAgAEHgAmooAgAiCw0AQQYhBQwBC0EHIQUgAEGUA2ooAgAiDEUNAEEAIARBBEciBCAAKAIwIg1Bf0ZyayEOQX8gDSAEGyEEAkAgBkEERw0AIABB5ABqKAIAIgYgBCAGIARJIgYbIQRBASAOIAYbIQ4LAkAgB0EERw0AIABBmAFqKAIAIgYgBCAGIARJIgYbIQRBAiAOIAYbIQ4LAkAgCEEERw0AIABBzAFqKAIAIgYgBCAGIARJIgYbIQRBAyAOIAYbIQ4LAkAgCUEERw0AIABBgAJqKAIAIgYgBCAGIARJIgYbIQRBBCAOIAYbIQ4LAkAgCkEERw0AIABBtAJqKAIAIgYgBCAGIARJIgYbIQRBBSAOIAYbIQ4LAkAgC0EERw0AIABB6AJqKAIAIgYgBCAGIARJIgYbIQRBBiAOIAYbIQ4LAkAgDEEERw0AIABBnANqKAIAIARJDQELAkAgDkF/TA0AIA4hBQwBC0EHQQZBBUEEQQNBAkEBIA5BACAAKAIwIgRBf0YbIABB5ABqKAIAIgUgBEkiBhsgAEGYAWooAgAiByAFIAQgBhsiBEkiBRsgAEHMAWooAgAiBiAHIAQgBRsiBEkiBRsgAEGAAmooAgAiByAGIAQgBRsiBEkiBRsgAEG0AmooAgAiBiAHIAQgBRsiBEkiBRsgAEHoAmooAgAiByAGIAQgBRsiBEkiBRsgAEGcA2ooAgAgByAEIAUbSRshBQsgACAFQTRsaiIEQShqIQYCQCAEKAIoDQAgBEIANwIUIARBADYCDCAEQQAoAuCMgIAAIgdBDXQgB3MiB0ERdiAHcyIHQQV0IAdzIgeyQwAAADCUQwAAAD+UQwAAAD+SOAIAQQAgB0ENdCAHcyIHQRF2IAdzIgdBBXQgB3MiBzYC4IyAgAAgBCAHskMAAAAwlEMAAAA/lEMAAAA/kjgCBAsgBkEBNgIAIAQgAjgCICAEIAE2AiQgBCADNgIsIAAgACgCoANBAWoiAzYCoAMgBCADNgIwIARDmpmZPkOamZm+IAVBAXEbOAIcIARBgICA/AM2AhACQAJAQwAA/MJDAAD8QiABskMAAIrCkkOrqqo9lCICIAJDAAD8Ql4bIAJDAAD8wl0bIgKLQwAAAE9dRQ0AIAKoIQAMAQtBgICAgHghAAsgBCACIAAgAiAAsl1rIgCykyICIAIgAiACQzyVHTyUQ0RYYz2SlEPw/XU+kpRDGHIxP5KUQwAAgD+SIABBF3RBgICA/ANqvpRDAADcQ5Q4AggL2wUBAn8CQCAAQQtLDQACQAJAIABBmA5sIgJB8IyAgABqKAIAQX5qDgIAAQILAkAgAUEASA0AIAJBzJaAgABqKAIAIAFHDQILIABBmA5sIgBBsJaAgABqQQA2AgAgAEHUloCAAGpBADoAAA8LIAJBlJeAgABqKAIAIgBBAEcgAEEESHEhAyACQeyWgIAAaiEAAkACQCABQQBIDQACQCADIAAoAiQgAUZxRQ0AIABBBDYCKAsCQCAAQdwAaigCACICRQ0AIAJBA0oNACAAQdgAaigCACABRw0AIABBBDYCXAsCQCAAQZABaigCACICRQ0AIAJBA0oNACAAQYwBaigCACABRw0AIABBBDYCkAELAkAgAEHEAWooAgAiAkUNACACQQNKDQAgAEHAAWooAgAgAUcNACAAQQQ2AsQBCwJAIABB+AFqKAIAIgJFDQAgAkEDSg0AIABB9AFqKAIAIAFHDQAgAEEENgL4AQsCQCAAQawCaigCACICRQ0AIAJBA0oNACAAQagCaigCACABRw0AIABBBDYCrAILAkAgAEHgAmooAgAiAkUNACACQQNKDQAgAEHcAmooAgAgAUcNACAAQQQ2AuACCyAAQZQDaiICKAIAIgNFDQIgA0EDSg0CIABBkANqKAIAIAFGDQEMAgsCQCADRQ0AIABBBDYCKAsCQCAAQdwAaigCACIBRQ0AIAFBA0oNACAAQQQ2AlwLAkAgAEGQAWooAgAiAUUNACABQQNKDQAgAEEENgKQAQsCQCAAQcQBaigCACIBRQ0AIAFBA0oNACAAQQQ2AsQBCwJAIABB+AFqKAIAIgFFDQAgAUEDSg0AIABBBDYC+AELAkAgAEGsAmooAgAiAUUNACABQQNKDQAgAEEENgKsAgsCQCAAQeACaigCACIBRQ0AIAFBA0oNACAAQQQ2AuACCyAAQZQDaiICKAIAIgBFDQEgAEEDSg0BCyACQQQ2AgALCwgAQdDnl4EACwgAQdDrl4EACwsAQQArA9CMgIAACwsAQQArA9Dvl4EACwsAQQAtAJDml4EACwsAQQAtAMDnl4EACwsAQQAoAtjvl4EACwsAQQAoAtiMgIAACyUBAX9BfyEBAkAgAEECSw0AIABBAnRBtIyAgABqKAIAIQELIAELCwBBACgCxIyAgAALDABBACkDoOaXgQC5CwsAQQAoAsCMgIAACwsAQQAoAtzvl4EACwsAQQAoAuDvl4EACyUBAX9BfyEBAkAgAEELSw0AIABBAnRB4M2BgABqKAIAIQELIAELNgEBfUMAAAAAIQICQCAAQQtLDQAgAUEfSw0AIABBmA5sIAFBAnRqQfSMgIAAaioCACECCyACCyEBAX0gAEGYDmxBhJuAgABqIgAqAgAhASAAQQA2AgAgAQscAQF9QQAqAuTvl4EAIQBBAEEANgLk75eBACAAC4ADAQJ/QQAhAEEAIQEDQAJAAkACQAJAIABB8IyAgABqKAIAQX9qDgMAAgEDCyABIABB1I6AgABqLQAAaiAAQayPgIAAai0AAGogAEGEkICAAGotAABqIABB3JCAgABqLQAAaiAAQbSRgIAAai0AAGogAEGMkoCAAGotAABqIABB5JKAgABqLQAAaiAAQbyTgIAAai0AAGogAEGUlICAAGotAABqIABB7JSAgABqLQAAaiAAQcSVgIAAai0AAGogAEGcloCAAGotAABqIQEMAgsgASAAQZSXgIAAaigCAEEAR2ogAEHIl4CAAGooAgBBAEdqIABB/JeAgABqKAIAQQBHaiAAQbCYgIAAaigCAEEAR2ogAEHkmICAAGooAgBBAEdqIABBmJmAgABqKAIAQQBHaiAAQcyZgIAAaigCAEEAR2ogAEGAmoCAAGooAgBBAEdqIQEMAQsgASAAQayWgIAAaioCAEMAAAAAXmohAQsgAEGYDmoiAEGgqgFHDQALIAELg2IIAX8BfAN/An0BfwJ+LX8UfSOAgICAAEHgAGsiASSAgICAAEQAAAAAAADwvyECAkBBAC0AkOaXgQBFDQBBACkDmOaXgQC5QQArA9DNgYAAQQArA6CMgIAAo6EhAgtBACACOQPQjICAAAJAAkBBAC0AhaqBgABBAC0A7ZuBgABBAC0A1Y2BgABBAC0Avf+AgABycnJBAC0ApfGAgABBAC0AjeOAgABBAC0A9dSAgABBAC0A3caAgABBAC0AxbiAgABBAC0AraqAgABBAC0AlZyAgABBAC0A/Y2AgABycnJycnJyckUNACABQTBqIQNBACEEIAEhBQNAIARB+I2AgABqKgIAIQYCQAJAIARB/I2AgABqLQAADQAgBEH9jYCAAGotAABFDQAgBEH0jYCAAGoqAgAiByAHlEMzM7M/lCEHDAELQwAAAAAhBwsgBSAGQwAAgD+SQwAAgD8gBkMAAAAAXRsgB5Q4AgAgA0MAAIA/IAaTQwAAgD8gBkMAAAAAXhsgB5Q4AgAgBUEEaiEFIANBBGohAyAEQZgOaiIEQaCqAUcNAAwCCwsgAUMAAIA/QQAqAviNgIAAIgaTQwAAgD8gBkMAAAAAXhtDAAAAAEEAKgL0jYCAACIHIAeUQzMzsz+UQQAtAPyNgIAAGyIHlDgCMCABIAZDAACAP5JDAACAPyAGQwAAAABdGyAHlDgCACABQwAAgD9BACoCkJyAgAAiBpNDAACAPyAGQwAAAABeG0MAAAAAQQAqAoycgIAAIgcgB5RDMzOzP5RBAC0AlJyAgAAbIgeUOAI0IAEgBkMAAIA/kkMAAIA/IAZDAAAAAF0bIAeUOAIEIAFDAACAP0EAKgKoqoCAACIGk0MAAIA/IAZDAAAAAF4bQwAAAABBACoCpKqAgAAiByAHlEMzM7M/lEEALQCsqoCAABsiB5Q4AjggASAGQwAAgD+SQwAAgD8gBkMAAAAAXRsgB5Q4AgggAUEAKgLAuICAACIGQwAAgD+SQwAAgD8gBkMAAAAAXRtDAAAAAEEAKgK8uICAACIHIAeUQzMzsz+UQQAtAMS4gIAAGyIHlDgCDCABQwAAgD8gBpNDAACAPyAGQwAAAABeGyAHlDgCPCABQwAAgD9BACoC2MaAgAAiBpNDAACAPyAGQwAAAABeG0MAAAAAQQAqAtTGgIAAIgcgB5RDMzOzP5RBAC0A3MaAgAAbIgeUOAJAIAEgBkMAAIA/kkMAAIA/IAZDAAAAAF0bIAeUOAIQIAFDAACAP0EAKgLw1ICAACIGk0MAAIA/IAZDAAAAAF4bQwAAAABBACoC7NSAgAAiByAHlEMzM7M/lEEALQD01ICAABsiB5Q4AkQgASAGQwAAgD+SQwAAgD8gBkMAAAAAXRsgB5Q4AhQgAUMAAIA/QQAqAojjgIAAIgaTQwAAgD8gBkMAAAAAXhtDAAAAAEEAKgKE44CAACIHIAeUQzMzsz+UQQAtAIzjgIAAGyIHlDgCSCABIAZDAACAP5JDAACAPyAGQwAAAABdGyAHlDgCGCABQQAqAqDxgIAAIgZDAACAP5JDAACAPyAGQwAAAABdG0MAAAAAQQAqApzxgIAAIgcgB5RDMzOzP5RBAC0ApPGAgAAbIgeUOAIcIAFDAACAPyAGk0MAAIA/IAZDAAAAAF4bIAeUOAJMIAFDAACAP0EAKgK4/4CAACIGk0MAAIA/IAZDAAAAAF4bQwAAAABBACoCtP+AgAAiByAHlEMzM7M/lEEALQC8/4CAABsiB5Q4AlAgASAGQwAAgD+SQwAAgD8gBkMAAAAAXRsgB5Q4AiAgAUMAAIA/QQAqAtCNgYAAIgaTQwAAgD8gBkMAAAAAXhtDAAAAAEEAKgLMjYGAACIHIAeUQzMzsz+UQQAtANSNgYAAGyIHlDgCVCABIAZDAACAP5JDAACAPyAGQwAAAABdGyAHlDgCJCABQwAAgD9BACoC6JuBgAAiBpNDAACAPyAGQwAAAABeG0MAAAAAQQAqAuSbgYAAIgcgB5RDMzOzP5RBAC0A7JuBgAAbIgeUOAJYIAEgBkMAAIA/kkMAAIA/IAZDAAAAAF0bIAeUOAIoIAFDAACAP0EAKgKAqoGAACIGk0MAAIA/IAZDAAAAAF4bQwAAAABBACoC/KmBgAAiByAHlEMzM7M/lEEALQCEqoGAABsiB5Q4AlwgASAGQwAAgD+SQwAAgD8gBkMAAAAAXRsgB5Q4AiwLAkAgAEEBSA0AQQAhCANAAkBBAC0AkOaXgQBFDQACQEEAKwPQzYGAACICRAAAAAAAAAAAZUUNAEEAKQOY5peBACEJA0ACQCAJQQApA6Dml4EAfSIKQQA0AsCMgIAAUw0AQQBBACgC3O+XgQBBAWo2Atzvl4EAAkACQAJAQQAtAMDnl4EADQACQAJAQQAoAsSMgIAAIgRBf0oNAEEAKALE55eBACEEDAELQQBBfzYCxIyAgABBACAENgLE55eBAAtBACAENgK0jICAAEEAQn83AriMgIAADAELAkBBACgCyIyAgAAiBEH/AEsNACAEQQJ0IgNB0smBgABqLAAAIQsgA0HRyYGAAGosAAAhBQJAIANB0MmBgABqLAAAIgNBf0oNACAFQX9KDQAgC0EASA0BC0EAQQE2AtiMgIAAQQAgBDYC2O+XgQBBACALNgK8jICAAEEAIAU2AriMgIAAQQAgAzYCtIyAgAAQj4CAgABBAEF/NgLIjICAAAwCCwJAQQAoAtiMgIAAIgVBACgC2O+XgQAiA0ECdCILQdPJgYAAai0AACIEQQEgBEEBSxtODQBBAEIANwO455eBAEEAQgA3A7Dnl4EAQQBCADcDqOeXgQBBAEIANwOg55eBAEEAQgA3A5jnl4EAQQBCADcDkOeXgQBBAEIANwOI55eBAEEAQgA3A4Dnl4EAQQBCADcD+OaXgQBBAEIANwPw5peBAEEAQgA3A+jml4EAQQBCADcD4OaXgQBBAEIANwPY5peBAEEAQgA3A9Dml4EAQQBCADcDyOaXgQBBAEIANwPA5peBAEEAQgA3A7jml4EAQQBCADcDsOaXgQBBACAFQQFqNgLYjICAAAwCCwJAAkAgA0H+AEoNACADQQFqIQMgC0HWyYGAAGohBANAAkAgA0H/AEsNACAEQX9qLAAAIQUgBEF+aiwAACILQX9KDQMgBUF/Sg0DIAQsAABBf0oNAwsgBEEEaiEEIANBAWoiA0GAAUcNAAsLQQBBACgC4O+XgQBBAWo2AuDvl4EAQQBBADoAkOaXgQAQkYCAgABBACAJNwOg5peBAEEAKwOgjICAACACoCECDAULQQBBATYC2IyAgABBACADNgLY75eBAEEAIAU2AriMgIAAQQAgCzYCtIyAgABBACAELAAANgK8jICAAAsQj4CAgAALQQAgCTcDoOaXgQBCACEKCyAKpyIMQeAAbyEEAkBBAC0A2M2BgABFDQAgBA0AQQBBgICA/AM2AtzNgYAAQQBDAAB6REMAAPpEIAxBgANvGzgC3IyAgABBAEEANgLo75eBAAtB4NV+IQQDQAJAAkACQCAEQZC3gYAAaigCAEF+ag4CAQACCwJAIARBtMGBgABqIgUoAgAiA0UNACADQQRODQAgBEG4wYGAAGoiAygCACILQQFIDQAgAyALQX9qIgs2AgAgCw0AIAVBBDYCAAsCQCAEQejBgYAAaiIFKAIAIgNFDQAgA0EDSg0AIARB7MGBgABqIgMoAgAiC0EBSA0AIAMgC0F/aiILNgIAIAsNACAFQQQ2AgALAkAgBEGcwoGAAGoiBSgCACIDRQ0AIANBA0oNACAEQaDCgYAAaiIDKAIAIgtBAUgNACADIAtBf2oiCzYCACALDQAgBUEENgIACwJAIARB0MKBgABqIgUoAgAiA0UNACADQQNKDQAgBEHUwoGAAGoiAygCACILQQFIDQAgAyALQX9qIgs2AgAgCw0AIAVBBDYCAAsCQCAEQYTDgYAAaiIFKAIAIgNFDQAgA0EDSg0AIARBiMOBgABqIgMoAgAiC0EBSA0AIAMgC0F/aiILNgIAIAsNACAFQQQ2AgALAkAgBEG4w4GAAGoiBSgCACIDRQ0AIANBA0oNACAEQbzDgYAAaiIDKAIAIgtBAUgNACADIAtBf2oiCzYCACALDQAgBUEENgIACwJAIARB7MOBgABqIgUoAgAiA0UNACADQQNKDQAgBEHww4GAAGoiAygCACILQQFIDQAgAyALQX9qIgs2AgAgCw0AIAVBBDYCAAsgBEGgxIGAAGoiBSgCACIDRQ0BIANBA0oNASAEQaTEgYAAaiIDKAIAIgtBAUgNASADIAtBf2oiCzYCACALDQEgBUEENgIADAELIARB9MCBgABqIgUtAABFDQAgBEHwwIGAAGoiAygCACILQQFIDQAgAyALQX9qIgs2AgAgCw0AAkAgBEH1wIGAAGotAAANACAEQdDAgYAAakEANgIAIAVBADoAAAwBCyADQX82AgALIARBmA5qIgQNAAtBACENQQAtANWNgYAAQQAtAL3/gIAAckEALQDtm4GAAHJBAC0AhaqBgAByQQAtAJWcgIAAQQAtAP2NgIAAckEALQCtqoCAAHJBAC0AxbiAgAByQQAtAN3GgIAAckEALQD11ICAAHJBAC0AjeOAgAByQQAtAKXxgIAAcnJFIQ4DQAJAIA1BAnRBtIyAgABqKAIAIg9BAEgNAEGAAyEEAkAgD0E/Sw0AIA9BkLeBgABqLQAAIgNFDQAgA0EYbCEECyAMIARvIQsCQCAMQQFIDQAgCw0AIA1BMGwiBEHY5peBAGpCADcDACAEQdDml4EAakIANwMAIARByOaXgQBqQgA3AwAgBEHA5peBAGpCADcDACAEQbjml4EAakIANwMAIARBsOaXgQBqQgA3AwALIA9BgKACbEGQ5oeAAGohEEEAIREDQAJAIA1BMGwgEUECdGpBsOaXgQBqIhIoAgAiBCAPQRhsIBFBAXRqQdC3gYAAai8BACIFTg0AIBAgBEEDdGohAwNAIAsgAy8BAEwNASADQQhqIQMgBSAEQQFqIgRHDQALIAUhBAsCQAJAIBFBmA5sIgNB8IyAgABqIhMoAgANAEEBIRQMAQsgA0H8jYCAAGotAABBAEciFCAOcg0AIANB/Y2AgABqLQAARSEUCwJAIAQgBU4NAAJAAkAgFA0AIANB9IyAgABqIRUgA0GAjoCAAGohFiADQbCWgIAAaiEXIANBtJaAgABqIRggA0G4loCAAGohGSADQdiWgIAAaiEaIANB0JaAgABqIRsgA0GkloCAAGohHCADQaiWgIAAaiEdIANBzJaAgABqIR4gA0HVloCAAGohHyADQayWgIAAaiEgIANB1JaAgABqISEgA0HsloCAAGohIiADQfiagIAAaiEjIANBvJqAgABqISQgA0HwmoCAAGohJSADQbiagIAAaiEmIANB6JqAgABqIScgA0G0moCAAGohKCADQeCagIAAaiEpIANBsJqAgABqISogA0HYmoCAAGohKyADQayagIAAaiEsIANB0JqAgABqIS0gA0GomoCAAGohLiADQciagIAAaiEvIANBpJqAgABqITAgA0HAmoCAAGohMSADQaCagIAAaiEyIARBA3QhMyAQITQDQCALIDQgM2oiFC8BAEcNA0EAKQOY5peBAEJofCEJIBRBA2otAAAhNQJAAkAgMigCACAUQQJqLQAAIgNHDQAgCSAxKQMAfUJQVg0BCwJAIDAoAgAgA0cNACAJIC8pAwB9QlBWDQELAkAgLigCACADRw0AIAkgLSkDAH1CUFYNAQsCQCAsKAIAIANHDQAgCSArKQMAfUJQVg0BCwJAICooAgAgA0cNACAJICkpAwB9QlBWDQELAkAgKCgCACADRw0AIAkgJykDAH1CUFYNAQsCQCAmKAIAIANHDQAgCSAlKQMAfUJQVg0BCwJAICQoAgAgA0cNACAJICMpAwB9QlBWDQELIDWzQwAA/kKVIQYgFEEEai8BACI1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FC4+zcwMPwAAQD8AAEhFmpmZPwAAFkQAAAAAAAAAAAAAAAAAAAAAAAAAAK5HYT4AAAAAAACAPwCAokTNzAxAAAD6QwEAAAAAAL5CAAAAAGZmpj/NzEw9XI/CPgAAgD+PwnU9AACWRAAAgD8AAAAAAAAAAAAAB0MAAAAAZmamP83MTD0K16M+AACAP4/CdT0AgLtEAACAPwAAAAAAAAAAAAA+QwAAAABmZqY/zcxMPSlcjz4AAIA/j8J1PQCA7UQAAIA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAzcxMPQAAAAAAAIA/AKAMRjMzsz8AwNpFAgAAAAAAAAAAAAAAAAAAAAAAAAA9Ctc+AAAAAAAAgD8AoAxGmpmZPwDA2kUCAAAAAADmQwAAAADNzMw+CtcjPOxROD3NzEw/MzOzPgAAFkUAAMA/AABIRAAAAAAAQAhEAMBLRAAAAAAAAAAAKVyPPgAAgD8AAAAAAEADRQAAIEAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAADNzIw/AAAAAAAAgD8AYOpFZmZmPwCAokUCAAAAAOBERQAAAAAAAAAAAAAAAAAAwD+PwvU9MzMzPwDQBEbNzEw/AIC7RQIAAAAAQZAMC1QAgDtHPsOuNwAA+kIAAAAAAAAAAABAj0B3vn8/AAAAP83MTD8AAAAA//////////+AAQAA//////////8AAAAAAAAAAAAA8L8BAAAAAAB6RGdFIwEA0gQEbmFtZQANDGVuZ2luZTIud2FzbQGUBC0ABGluaXQBCXNldF90ZW1wbwIJc2V0X21ldHJvAwpzZXRfbWFzdGVyBAhzZXRfdHlwZQUJc2V0X3BhcmFtBghzZXRfbGl2ZQcHc2V0X21peAgFc3RhZ2UJBmNvbW1pdAoIc2V0X3BsZW4LCXNldF9wYXRjaAwOc2V0X3BhdGNoX2ZsYWcNB3NldF9yb3cOCnNlbGVjdF9wYXQPDXNldFJvd0xhbmVzKCkQDHBsYXlfcGF0dGVybhENYWxsTm90ZXNPZmYoKRIJcGxheV9zb25nEwhqdW1wX3JvdxQEc3RvcBUHbm90ZV9vbhYpZHJ1bVRyaWcoRHJ1bSYsIGZsb2F0IGNvbnN0KiwgaW50LCBmbG9hdCkXHnBvbHlPbihQb2x5JiwgaW50LCBmbG9hdCwgaW50KRgIbm90ZV9vZmYZBW91dF9sGgVvdXRfchsHZ2V0X3BvcxwKZ2V0X2ZyYW1lcx0LZ2V0X3BsYXlpbmceCGdldF9tb2RlHwdnZXRfcm93IAdnZXRfcmVwIQhnZXRfbGFuZSIKZ2V0X3F1ZXVlZCMMZ2V0X3Jvd3N0YXJ0JApnZXRfcm93bGVuJQpnZXRfYm91bmRzJglnZXRfZW5kZWQnCWdldF9vd25lcigJZ2V0X3BhcmFtKQp0YWtlX3RwZWFrKgl0YWtlX3BlYWsrCmdldF92b2ljZXMsB3Byb2Nlc3MHEgEAD19fc3RhY2tfcG9pbnRlcgkRAgAHLnJvZGF0YQEFLmRhdGEAOAlwcm9kdWNlcnMBDHByb2Nlc3NlZC1ieQEMVWJ1bnR1IGNsYW5nETE4LjEuMyAoMXVidW50dTEpACwPdGFyZ2V0X2ZlYXR1cmVzAisPbXV0YWJsZS1nbG9iYWxzKwhzaWduLWV4dA==";
+const $=id=>document.getElementById(id);
+const WASM=(s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u})(WASM_B64);
+const NT=12,NPAT=64,TPS=24,PPQ=96,MAXROW=128;
+const TYPES=["EMPTY","DRUM","BASS","POLY"];
+const TCOL=["#ff7a2f","#ffd23f","#3fd0ff","#b07cff","#4be38a","#ff5fa2","#ff9f43","#7ce0d3","#9fb4ff","#f7e36b","#e58cff","#6be3ff"];
+const LANECOL=["#ffb27f","#7fd6ff","#c9a6ff"];
+const DRUMS=["BD","SD","CP","LT","MT","HT","CH","OH","RS","CB","CY","RD"];
+const KNOBS={1:[[0,"TUNE"],[1,"DECAY"],[2,"TONE"],[3,"DRIVE"]],
+ 2:[[0,"CUTOFF"],[1,"RESO"],[2,"ENV MOD"],[3,"DECAY"],[4,"DRIVE"],[5,"WAVE",2],[6,"GLIDE"]],
+ 3:[[0,"CUTOFF"],[1,"RESO"],[7,"ENV AMT"],[2,"ATTACK"],[3,"DECAY"],[4,"SUSTAIN"],[5,"RELEASE"],[6,"DETUNE"]]};
+const DEFP={0:[],1:[.5,.5,.5,.15],2:[.25,.55,.6,.3,.2,0,.5],3:[.55,.2,.05,.4,.7,.35,.4,.3]};
+function defParams(type){const a=new Array(32).fill(.5);(DEFP[type]||[]).forEach((v,i)=>a[i]=v);return a}
+const patName=p=>p<0||p==null?"—":"ABCD"[p>>4]+((p&15)+1);
+function toast(t){const e=$("toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),1300)}
+
+// ================= project data (the engine holds a copy) =================
+let D;
+function newProject(demo){
+ D={format:"EMG_PROJECT",version:2,bpm:125,
+  tracks:Array.from({length:NT},(_,i)=>({type:0,vol:.8,pan:0,mute:0,solo:0,P:defParams(0)})),
+  pats:Array.from({length:NPAT},()=>({len:16,tr:Array.from({length:NT},()=>[]),patch:Array(NT).fill(null)})),
+  chain:Array.from({length:MAXROW},()=>({l:[-1,-1,-1],r:1}))};
+ if(demo){
+  [[0,1],[1,2],[2,3]].forEach(([t,ty])=>{D.tracks[t].type=ty;D.tracks[t].P=defParams(ty)});
+  const p=D.pats[0];
+  for(let s=0;s<16;s++){if(s%4===0)p.tr[0].push({t:s*24,n:0,v:120,l:24,f:0});if(s%4===2)p.tr[0].push({t:s*24,n:6,v:s%8===6?110:85,l:24,f:0});if(s===4||s===12)p.tr[0].push({t:s*24,n:1,v:105,l:24,f:0});}
+  [[0,36],[2,36],[3,48],[6,39],[8,36],[10,43],[11,36],[14,46]].forEach(([s,n],i)=>p.tr[1].push({t:s*24,n,v:i%3===0?120:95,l:12,f:i===2?1:0}));
+  [[0,[60,63,67]],[8,[58,62,65]]].forEach(([s,ns])=>ns.forEach(n=>p.tr[2].push({t:s*24,n,v:95,l:6*24,f:0})));
+  D.chain[0]={l:[0,-1,-1],r:2};
+ }
+}
+// ---- UI state ----
+const U={sel:0,page:"seq",bank:0,editPat:0,viewPage:0,follow:true,noteLen:1,roll:{},drumPart:0,quant:24,rec:false,bottom:"keys",kOct:3,
+ songSel:{row:0,lane:0},clip:null,songRec:null};
+// ---- engine sync ----
+let ctx=null,node=null,wkURL=null,sr=48000,hpWorklet=false,started=false;
+function send(m){if(node)node.port.postMessage(m)}
+let cmdSeq=0;function sendT(m){send(m);cmdSeq++;send(["sq",cmdSeq])}
+function flatNotes(list){const f=[];list.forEach(n=>f.push(n.t,n.n,n.v,n.l,n.f||0));return f}
+function syncTrackNotes(p,t){send(["nt",p,t,flatNotes(D.pats[p].tr[t])]);markDirty()}
+function syncRow(r){const c=D.chain[r];send(["row",r,c.l[0],c.l[1],c.l[2],c.r]);markDirty()}
+function syncMix(t){const k=D.tracks[t];send(["mix",t,k.vol,k.pan,k.mute,k.solo]);markDirty()}
+function fullState(){const b=[["t",D.bpm],["ms",.8],["mt",U.metro?1:0,.7]];
+ D.tracks.forEach((k,t)=>{b.push(["ty",t,k.type]);k.P.forEach((v,i)=>b.push(["pv",t,i,v]));b.push(["mix",t,k.vol,k.pan,k.mute,k.solo])});
+ D.pats.forEach((p,i)=>{b.push(["pl",i,p.len]);p.tr.forEach((l,t)=>{if(l.length)b.push(["nt",i,t,flatNotes(l)])});p.patch.forEach((v,t)=>{if(v)b.push(["pa",i,t,v])})});
+ D.chain.forEach((c,r)=>{if(c.l.some(x=>x>=0)||c.r!==1)b.push(["row",r,c.l[0],c.l[1],c.l[2],c.r])});
+ b.push(["sel",U.editPat]);
+ return {b}}
+// note: "p" messages above write live params; engine set_param also creates a patch for the owner pattern.
+// To keep the mirror exact, patches are re-sent after the live params (fullState order) and the engine copy is authoritative only for playback.
+
+// ================= ownership (same rule as the engine) =================
+let lanes=[0,-1,-1];
+function ownerOf(t){for(let l=0;l<3;l++){const p=lanes[l];if(p>=0&&D.pats[p].tr[t].length)return p}return lanes[0]>=0?lanes[0]:lanes[1]>=0?lanes[1]:lanes[2]}
+function applyOwnersToMirror(){for(let t=0;t<NT;t++){const o=ownerOf(t);if(o>=0&&D.pats[o].patch[t]&&D.tracks[t].type)D.tracks[t].P=D.pats[o].patch[t].slice()}if(U.bottom==="sound")buildSound()}
+function setParam(t,id,v){const k=D.tracks[t];k.P[id]=v;const o=ownerOf(t);if(o>=0){const pt=D.pats[o];if(!pt.patch[t])pt.patch[t]=k.P.slice();pt.patch[t][id]=v}send(["p",t,id,v]);markDirty()}
+
+// ================= audio =================
+const A={anchorPos:-1,anchorFr:0,ld:null,bz:0,sp:0,ldMax:0,ldWinMax:0,v:0,pk:0,rs:0,rl:384,md:0,row:0,rep:1,q:-1,bd:0,end:0,pl:0};
+async function loadWorklet(c){const src=$("wkSrc").textContent;
+ if(!wkURL)wkURL=URL.createObjectURL(new Blob([src],{type:"application/javascript"}));
+ try{await c.audioWorklet.addModule(wkURL);return}catch(e){log("blob worklet NG: "+e.name)}
+ await c.audioWorklet.addModule("data:application/javascript;base64,"+btoa(unescape(encodeURIComponent(src))));log("worklet: data URL")}
+async function startAudio(reason){
+ const wasPlaying=A.pl,resume=wasPlaying?{md:A.md,row:A.row,pat:lanes[0]}:null;
+ if(ctx){try{send(["kill"])}catch(_){}try{node.disconnect()}catch(_){}try{await ctx.close()}catch(_){}ctx=null;node=null}
+ try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(_){}
+ ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:"interactive"});sr=ctx.sampleRate;
+ await loadWorklet(ctx);
+ node=new AudioWorkletNode(ctx,"emg-engine",{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2],processorOptions:{wasm:WASM.buffer.slice(0)}});
+ node.port.onmessage=onEngine;node.connect(ctx.destination);
+ ctx.onstatechange=()=>log("ctx state: "+ctx.state);
+ send(fullState());cmdSeq++;send(["sq",cmdSeq]);
+ if(resume){if(resume.md===1)sendT(["ps",resume.row]);else sendT(["pp",resume.pat])}
+ if(ctx.state!=="running")await ctx.resume();
+ M.reset(true);started=true;
+ log(`audio start (${reason}) sr=${sr} base=${fmt(ctx.baseLatency*1000)}ms out=${fmt((ctx.outputLatency||0)*1000)}ms`);
+}
+let lastBd=-1,lastEnd=0;
+function onEngine(e){const d=e.data;
+ if(d.ready){hpWorklet=d.hp;log("engine ready");return}
+ A.v=d.v;A.pk=Math.max(A.pk*.9,d.pk);
+ A.bz+=d.bz;A.sp+=d.sp;if(A.sp>=(hpWorklet?500:4000)){const l=A.bz/A.sp;A.ld=A.ld==null?l:A.ld*.6+l*.4;A.bz=0;A.sp=0}if(d.mx>A.ldWinMax)A.ldWinMax=d.mx;
+ for(let t=0;t<NT;t++)meter[t]=Math.max(meter[t]*.8,d.tp[t]);
+ if(d.sq!==cmdSeq)return; // the engine has not yet seen our last transport command
+ A.anchorPos=d.pl?d.pos:-1;A.anchorFr=d.fr;
+ A.rs=d.rs;A.rl=d.rl;A.md=d.md;A.row=d.row;A.rep=d.rep;A.q=d.q;
+ const wasPl=A.pl;A.pl=d.pl;
+ const lanesChanged=d.ln[0]!==lanes[0]||d.ln[1]!==lanes[1]||d.ln[2]!==lanes[2];
+ if(d.bd!==lastBd||lanesChanged){
+  const first=lastBd<0;lastBd=d.bd;lanes=d.ln.slice();
+  if(!first)onBoundary(lanesChanged);
+ }
+ if(d.end!==lastEnd){lastEnd=d.end;if(started&&wasPl){setPlayUI(false);songMsg("SONG END","最後の行まで再生しました")}}
+ if(wasPl&&!d.pl)setPlayUI(false);
+}
+function onBoundary(changed){
+ if(U.songRec&&A.md===0&&A.pl){const R=U.songRec,cur=D.chain[R.row];
+  if(lanes[0]===cur.l[0]){cur.r=Math.min(99,cur.r+1);syncRow(R.row)}
+  else if(R.row<MAXROW-1){R.row++;D.chain[R.row]={l:[lanes[0],-1,-1],r:1};syncRow(R.row)}
+  U.songSel.row=R.row;renderChain()}
+ if(changed){applyOwnersToMirror();
+  if(A.md===0){U.editPat=lanes[0];U.bank=U.editPat>>4;renderBank();renderBar()}
+  else{const o=ownerOf(U.sel);if(o>=0&&o!==U.editPat){U.editPat=o;U.bank=o>>4;renderBank();renderBar()}}}
+ renderBank();if(U.page==="song"){renderChain();renderSongStat()}
+ needDraw=true;
+}
+function heardTime(){if(!ctx)return 0;
+ if(ctx.getOutputTimestamp){const ts=ctx.getOutputTimestamp();if(ts&&ts.contextTime>0&&ts.performanceTime>0)return ts.contextTime+(performance.now()-ts.performanceTime)/1000}
+ return ctx.currentTime-(ctx.outputLatency||0)-(ctx.baseLatency||0)}
+function curPos(){if(A.anchorPos<0)return -1;return A.anchorPos+(heardTime()-A.anchorFr/sr)*D.bpm*PPQ/60}
+// position inside the edited pattern (ticks), -1 when stopped
+function patPos(p){const pos=curPos();if(pos<0)return -1;let local=pos-A.rs;if(local<0)local+=A.rl;if(local>=A.rl)local-=A.rl;const L=D.pats[p].len*TPS;return ((local%L)+L)%L}
+
+// ================= monitor =================
+const M={t0:performance.now(),glitch:0,recov:0,base:null,baseBuf:[],lagHi:0,prevClk:null,clk0:null,drift:0,
+ reset(keep){this.base=null;this.baseBuf=[];this.lagHi=0;this.prevClk=null;this.clk0=null;if(!keep){this.t0=performance.now();this.glitch=0;this.recov=0;A.ldMax=0}}};
+let autoRec=true;const meter=new Array(NT).fill(0);
+function tick500(){
+ if(!ctx)return;const now=performance.now();
+ $("mT").textContent=hms((now-M.t0)/1000);$("mS").textContent=ctx.state+" / "+sr;
+ const ld=(A.ld||0)*100;A.ldMax=Math.max(A.ldMax,A.ldWinMax*100);A.ldWinMax=0;
+ setVal("mL",A.ld==null?"計測中…":hpWorklet?`${ld.toFixed(1)}% / ${A.ldMax.toFixed(0)}%`:`約${ld.toFixed(1)}%`,ld>60?"bad":ld>35?"warn":"ok");
+ $("loadV").textContent=A.ld==null?"—":Math.round(ld)+"%";
+ $("mV").textContent=`${A.v} / ${(20*Math.log10(A.pk+1e-6)).toFixed(1)} dB`;
+ if(ctx.state!=="running"){setLamp("warn");return}
+ let lag=null;
+ if(ctx.getOutputTimestamp){const ts=ctx.getOutputTimestamp();if(ts&&ts.contextTime>0&&ts.performanceTime>0){
+  lag=(ctx.currentTime-(ts.contextTime+(now-ts.performanceTime)/1000))*1000;const clk=ts.contextTime*1000-ts.performanceTime;
+  if(M.prevClk!=null){const dd=clk-M.prevClk;if(dd<-15){M.glitch++;log(`音切れ検出: 音声の時計が ${(-dd).toFixed(0)}ms 止まった`)}}
+  M.prevClk=clk;if(M.clk0==null)M.clk0=clk;M.drift=clk-M.clk0}}
+ if(lag==null)lag=((ctx.outputLatency||0)+(ctx.baseLatency||0))*1000;
+ if(M.base==null){M.baseBuf.push(lag);if(M.baseBuf.length>=8){const s=[...M.baseBuf].sort((a,b)=>a-b);M.base=s[4];log(`出力遅延 基準 ${M.base.toFixed(1)}ms`)}}
+ const over=M.base==null?0:lag-M.base;
+ setVal("mLag",`${lag.toFixed(1)} / ${M.base==null?"…":M.base.toFixed(1)} ms`,over>80?"bad":over>40?"warn":"ok");
+ setVal("mG",String(M.glitch),M.glitch?"warn":"ok");setVal("mD",`${M.drift.toFixed(1)} ms`,Math.abs(M.drift)>50?"warn":"ok");$("mR").textContent=String(M.recov);
+ if(over>80){M.lagHi++;if(M.lagHi===1)log(`出力遅延が基準より ${over.toFixed(0)}ms 増加`)}else M.lagHi=0;
+ setLamp(over>80||ld>60?"bad":(over>40||ld>35)?"warn":"ok");
+ if(autoRec&&M.lagHi>=4){M.recov++;log("自動復旧: 音声を作り直します");M.lagHi=0;startAudio("auto").catch(err=>log("復旧失敗: "+err))}
+}
+setInterval(tick500,500);
+function setVal(id,t,c){const e=$(id);e.textContent=t;e.className=c||""}
+function setLamp(c){$("lamp").className="lamp "+c}
+function hms(s){s=Math.floor(s);return `${Math.floor(s/3600)}:${String(Math.floor(s/60)%60).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`}
+function fmt(x){return x==null||isNaN(x)?"-":x.toFixed(1)}
+const LOG=[];function log(t){LOG.push(hms((performance.now()-M.t0)/1000)+" "+t);if(LOG.length>400)LOG.shift();const el=$("log");el.textContent=LOG.slice(-80).join("\n");el.scrollTop=1e9}
+$("bMon").onclick=()=>$("mon").classList.toggle("on");
+$("bAuto").onclick=()=>{autoRec=!autoRec;$("bAuto").textContent="自動復旧 "+(autoRec?"ON":"OFF");$("bAuto").classList.toggle("on",autoRec)};
+$("bNewCtx").onclick=()=>{log("手動: NEW CTX");startAudio("manual")};
+$("bRep").onclick=async()=>{const r=[`EMG v0.2.1 report`,navigator.userAgent,`経過 ${$("mT").textContent} / 状態 ${$("mS").textContent}`,`負荷 ${$("mL").textContent} / 出力遅延 ${$("mLag").textContent} / 音切れ ${M.glitch} / 時計ずれ ${M.drift.toFixed(1)}ms / 復旧 ${M.recov}`,"--- log ---",...LOG].join("\n");
+ try{await navigator.clipboard.writeText(r)}catch(_){const ta=document.createElement("textarea");ta.value=r;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove()}toast("レポートをコピーしました")};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&ctx&&ctx.state!=="running")ctx.resume().catch(()=>{})});
+document.addEventListener("pointerdown",()=>{if(ctx&&ctx.state!=="running")ctx.resume().catch(()=>{})},true);
+
+// ================= save / load =================
+let dirty=false;function markDirty(){dirty=true}
+setInterval(()=>{if(!dirty)return;dirty=false;try{localStorage.setItem("emg_v02_autosave",JSON.stringify(D))}catch(_){}},3000);
+function validProject(z){return z&&z.format==="EMG_PROJECT"&&Array.isArray(z.tracks)&&Array.isArray(z.pats)&&Array.isArray(z.chain)}
+function loadProject(z){
+ newProject(false);
+ D.bpm=z.bpm||125;
+ z.tracks.slice(0,NT).forEach((k,i)=>{Object.assign(D.tracks[i],k);if(!Array.isArray(D.tracks[i].P)||D.tracks[i].P.length<32)D.tracks[i].P=defParams(D.tracks[i].type)});
+ z.pats.slice(0,NPAT).forEach((p,i)=>{D.pats[i].len=p.len||16;(p.tr||[]).slice(0,NT).forEach((l,t)=>D.pats[i].tr[t]=(l||[]).map(n=>({t:n.t|0,n:n.n|0,v:n.v|0,l:n.l|0,f:n.f|0})));(p.patch||[]).slice(0,NT).forEach((v,t)=>D.pats[i].patch[t]=Array.isArray(v)?v.slice():null)});
+ z.chain.slice(0,MAXROW).forEach((c,r)=>D.chain[r]={l:(c.l||[-1,-1,-1]).slice(0,3),r:c.r||1});
+}
+$("bSave").onclick=()=>{const blob=new Blob([JSON.stringify(D)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ const d=new Date(),nm=`EMG_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}_${String(d.getHours()).padStart(2,"0")}${String(d.getMinutes()).padStart(2,"0")}.json`;
+ a.href=url;a.download=nm;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);toast("保存しました: "+nm)};
+$("fileIn").onchange=async e=>{try{const f=e.target.files&&e.target.files[0];if(!f)return;const z=JSON.parse(await f.text());if(!validProject(z))throw new Error("EMGのプロジェクトではありません");
+ stopAll();loadProject(z);afterLoad();toast("読み込みました")}catch(err){toast("読み込みエラー: "+err.message)}finally{e.target.value=""}};
+let newArm=0;$("bNew").onclick=()=>{if(Date.now()-newArm>2500){newArm=Date.now();toast("もう一度押すと新規プロジェクト");return}newArm=0;stopAll();newProject(false);D.tracks[0].type=1;D.tracks[0].P=defParams(1);afterLoad();toast("新規プロジェクト")};
+function afterLoad(){cmdSeq++;U.editPat=0;U.bank=0;U.viewPage=0;lanes=[0,-1,-1];applyOwnersToMirror();$("bpmV").textContent=D.bpm;send(fullState());send(["sq",cmdSeq]);renderAll();markDirty()}
+
+// ================= transport =================
+function setPlayUI(on){$("bPlay").classList.toggle("on",on);if(!on){A.anchorPos=-1;U.songRec=null;needDraw=true;renderChain()}}
+function stopAll(){sendT(["stop"]);setPlayUI(false);A.pl=0;releaseHeld()}
+$("bPlay").onclick=()=>{if(!started)return;
+ if(A.pl){return}
+ if(U.page==="song"&&!U.rec){
+  const r=U.songSel.row;let f=-1;for(let i=r;i<MAXROW;i++)if(D.chain[i].l.some(x=>x>=0)){f=i;break}
+  if(f<0){songMsg("SONG EMPTY","パターンを書き込んでください");return}
+  sendT(["ps",f]);U.songSel.row=f;songMsg("SONG PLAY",`STEP ${f+1} から再生`);
+ }else if(U.page==="song"&&U.rec){
+  const r=U.songSel.row,p=U.editPat;D.chain.splice(r,MAXROW-r,...Array.from({length:MAXROW-r},()=>({l:[-1,-1,-1],r:1})));
+  D.chain[r]={l:[p,-1,-1],r:1};for(let i=r;i<MAXROW;i++)syncRow(i);U.songRec={row:r};sendT(["pp",p]);songMsg("SONG REC",`STEP ${r+1}: ${patName(p)} — パターンを選ぶと次の区切りで切り替え・記録`);renderChain();
+ }else sendT(["pp",U.editPat]);
+ A.pl=1;setPlayUI(true)};
+$("bStop").onclick=()=>{const wasRec=!!U.songRec;stopAll();if(wasRec)songMsg("SONG REC 終了","記録した行を確認してください");else if(U.page==="song")songMsg("STOPPED","")};
+$("bRec").onclick=()=>{U.rec=!U.rec;$("bRec").classList.toggle("on",U.rec)};
+$("bMetro").onclick=()=>{U.metro=!U.metro;$("bMetro").classList.toggle("on",U.metro);send(["mt",U.metro?1:0,.7])};
+function setBpm(v){D.bpm=Math.max(40,Math.min(300,v));$("bpmV").textContent=D.bpm;send(["t",D.bpm]);markDirty()}
+let bpmRep=null;function bpmHold(btn,d){btn.addEventListener("pointerdown",e=>{setBpm(D.bpm+d);let n=0;bpmRep=setInterval(()=>{n++;setBpm(D.bpm+d*(n>10?5:1))},180)});["pointerup","pointercancel","pointerleave"].forEach(t=>btn.addEventListener(t,()=>clearInterval(bpmRep)))}
+bpmHold($("bpmDn"),-1);bpmHold($("bpmUp"),1);
+$("qSel").onchange=e=>U.quant=+e.target.value;
+$("tabSeq").onclick=()=>setPage("seq");$("tabSong").onclick=()=>setPage("song");
+function setPage(p){U.page=p;$("tabSeq").classList.toggle("on",p==="seq");$("tabSong").classList.toggle("on",p==="song");$("seqPage").classList.toggle("on",p==="seq");$("songPage").classList.toggle("on",p==="song");$("app").classList.toggle("songMode",p==="song");
+ if(p==="seq"){sizeCanvases();needDraw=true}else{renderChain();renderSBank();renderSongStat()}}
+
+// ================= tracks =================
+function trackLabel(t){return "T"+String(t+1).padStart(2,"0")}
+function renderTracks(){const box=$("tracks");box.querySelectorAll(".trk").forEach(e=>e.remove());
+ D.tracks.forEach((k,t)=>{const r=document.createElement("div");r.className="trk"+(t===U.sel?" sel":"")+(k.type?"":" empty");
+  r.innerHTML=`<div class="bar" style="background:${k.type?TCOL[t]:"#2a2f38"}"></div><div class="nm">${trackLabel(t)} ${TYPES[k.type]}<small>${k.type?"PAT "+patName(ownerOfSafe(t)):"未割り当て"}</small></div><button class="btn ms m${k.mute?" on":""}">M</button><button class="btn ms s${k.solo?" on":""}">S</button><div class="meter"></div>`;
+  r.addEventListener("pointerdown",e=>{if(e.target.closest(".ms"))return;selectTrack(t)});
+  r.querySelector(".m").onclick=()=>{k.mute=k.mute?0:1;syncMix(t);renderTracks()};
+  r.querySelector(".s").onclick=()=>{k.solo=k.solo?0:1;syncMix(t);renderTracks()};
+  box.appendChild(r)})}
+function ownerOfSafe(t){const o=ownerOf(t);return o<0?U.editPat:o}
+function selectTrack(t){U.sel=t;showOct();U.viewPage=Math.min(U.viewPage,pages()-1);renderTracks();renderBar();renderBottom();needDraw=true}
+function paintMeters(){document.querySelectorAll("#tracks .trk .meter").forEach((m,t)=>{m.style.width=Math.min(100,meter[t]*140)+"%"})}
+
+// ================= bank / bar =================
+function renderBank(){
+ const tabs=$("bankTabs");tabs.innerHTML="";"ABCD".split("").forEach((c,i)=>{const b=document.createElement("button");b.className="btn sm"+(i===U.bank?" on":"");b.textContent=c;b.onclick=()=>{U.bank=i;renderBank()};tabs.appendChild(b)});
+ const bank=$("bank");bank.innerHTML="";
+ for(let j=0;j<16;j++){const p=U.bank*16+j,b=document.createElement("button");
+  const has=D.pats[p].tr.some(l=>l.length);b.className="pad"+(has?" has":"")+(p===U.editPat?" cur":"")+(A.pl&&A.md===0&&A.q===p?" q":"")+(U.copy&&p!==U.copy.src?" tgt":"");b.textContent=patName(p);
+  b.onclick=()=>selectPattern(p);bank.appendChild(b)}}
+function selectPattern(p){
+ if(U.copy){pasteTo(p);return}
+ if(A.pl&&A.md===0){sendT(["sel",p]);A.q=p===lanes[0]?-1:p;toast(p===lanes[0]?"キュー解除":`次の区切りで ${patName(p)} へ`);renderBank();return}
+ if(A.pl&&A.md===1){U.editPat=p;renderBank();renderBar();needDraw=true;return} // song playing: edit view only
+ U.editPat=p;sendT(["sel",p]);lanes=[p,-1,-1];applyOwnersToMirror();U.viewPage=Math.min(U.viewPage,pages()-1);renderBank();renderBar();renderTracks();needDraw=true}
+function setLen(n){const p=U.editPat,P=D.pats[p],L=P.len;if(n===L)return;
+ if(n>L){P.tr.forEach((list,t)=>{const base=list.filter(x=>x.t<L*TPS);if(!base.length&&!list.length)return;const out=base.slice();for(let k=1;k<n/L;k++)base.forEach(x=>out.push({t:x.t+k*L*TPS,n:x.n,v:x.v,l:x.l,f:x.f}));P.tr[t]=out;syncTrackNotes(p,t)});toast(`${L} → ${n} ステップ：フレーズを複製しました`)}
+ P.len=n;send(["pl",p,n]);markDirty()}
+function pages(){return Math.max(1,D.pats[U.editPat].len/16)}
+function renderBar(){
+ const ls=$("lenSel");ls.innerHTML="";[16,32,64,128].forEach(n=>{const b=document.createElement("button");b.className="btn sm"+(D.pats[U.editPat].len===n?" on":"");b.textContent=n;b.onclick=()=>{setLen(n);U.viewPage=Math.min(U.viewPage,pages()-1);markDirty();renderBar();needDraw=true};ls.appendChild(b)});
+ const ps=$("pageSel");ps.innerHTML="";for(let i=0;i<pages();i++){const b=document.createElement("button");b.className="btn sm"+(i===U.viewPage?" on":"");b.textContent=i+1;b.onclick=()=>{U.viewPage=i;U.follow=false;$("bFollow").classList.remove("on");renderBar();needDraw=true};ps.appendChild(b)}
+ const ty=D.tracks[U.sel].type;
+ const nl=$("nlSel");nl.innerHTML="";[1,2,4,8,16].forEach(n=>{const b=document.createElement("button");b.className="btn sm"+(U.noteLen===n?" on":"");b.textContent=n;b.onclick=()=>{U.noteLen=n;renderBar()};nl.appendChild(b)});
+ const mel=ty===2||ty===3;["noteLenL","nlSel","octDnR","octUpR"].forEach(id=>$(id).style.display=mel?"":"none");
+}
+$("bFollow").onclick=()=>{U.follow=!U.follow;$("bFollow").classList.toggle("on",U.follow)};$("bFollow").classList.add("on");
+$("octDnR").onclick=()=>{rollLow(-12)};$("octUpR").onclick=()=>{rollLow(12)};
+function lowOf(t){return U.roll[t]!=null?U.roll[t]:(D.tracks[t].type===2?36:48)}
+function rollLow(d){const t=U.sel;U.roll[t]=Math.max(12,Math.min(96,lowOf(t)+d));needDraw=true;showOct();if(U.bottom==="keys"&&D.tracks[t].type!==1)buildKeys()}
+function showOct(){const lo=lowOf(U.sel);$("kOctV").textContent=nn(lo)}
+// COPY TRK / COPY PAT / COPY TONE: arm, then tap destination pads (several allowed). Tap the button again to finish.
+function armCopy(kind){
+ if(U.copy&&U.copy.kind===kind){U.copy=null;renderCopyBtns();renderBank();toast("コピー終了");return}
+ const p=U.editPat,t=U.sel,k=D.tracks[t];
+ if((kind==="trk"||kind==="tone")&&!k.type){toast("モジュールのあるトラックを選んでください");return}
+ let data;
+ if(kind==="trk")data={notes:JSON.parse(JSON.stringify(D.pats[p].tr[t])),len:D.pats[p].len};
+ else if(kind==="pat")data=JSON.parse(JSON.stringify(D.pats[p]));
+ else data=k.P.slice();
+ U.copy={kind,src:p,t,data};renderCopyBtns();renderBank();
+ toast({trk:`${trackLabel(t)} のノート`,pat:"パターン全体（ノート・音色・長さ）",tone:`${trackLabel(t)} の音色`}[kind]+` をコピー → 貼り付け先のパターンをタップ`)}
+function pasteTo(p){const C=U.copy,P=D.pats[p];
+ if(C.kind==="pat"){D.pats[p]=JSON.parse(JSON.stringify(C.data));send(["pl",p,D.pats[p].len]);for(let t=0;t<NT;t++){syncTrackNotes(p,t);send(["pa",p,t,D.pats[p].patch[t]])}}
+ else if(C.kind==="trk"){if(!P.tr.some(l=>l.length)){P.len=C.data.len;send(["pl",p,P.len])}P.tr[C.t]=JSON.parse(JSON.stringify(C.data.notes));syncTrackNotes(p,C.t)}
+ else{P.patch[C.t]=C.data.slice();send(["pa",p,C.t,P.patch[C.t]]);if(ownerOf(C.t)===p){D.tracks[C.t].P=C.data.slice();P.patch[C.t].forEach((v,i)=>send(["pv",C.t,i,v]))}}
+ markDirty();toast(`${patName(p)} に貼り付けました`);renderBank();renderTracks();needDraw=true}
+function renderCopyBtns(){[["cpTrk","trk"],["cpPat","pat"],["cpTone","tone"]].forEach(([id,k])=>$(id).classList.toggle("armed",!!(U.copy&&U.copy.kind===k)));
+ const e=$("bEdit");e.classList.toggle("armed",!!U.copy);e.textContent=U.copy?({trk:"TRACK",pat:"PATTERN",tone:"TONE"}[U.copy.kind]+" 貼り付け中 ✕"):"COPY / CLEAR ▾"}
+$("bEdit").onclick=()=>{if(U.copy){U.copy=null;renderCopyBtns();renderBank();toast("コピー終了");return}
+ const m=$("editMenu");if(m.classList.contains("on")){m.classList.remove("on");return}const r=$("bEdit").getBoundingClientRect();m.style.top=(r.bottom+6)+"px";m.style.left=Math.max(8,r.right-290)+"px";m.classList.add("on")};
+document.addEventListener("pointerdown",e=>{const m=$("editMenu");if(m.classList.contains("on")&&!e.target.closest("#editMenu,#bEdit"))m.classList.remove("on")});
+$("cpTrk").onclick=()=>{$("editMenu").classList.remove("on");armCopy("trk")};$("cpPat").onclick=()=>{$("editMenu").classList.remove("on");armCopy("pat")};$("cpTone").onclick=()=>{$("editMenu").classList.remove("on");armCopy("tone")};
+let taArm=0;$("toneAll").onclick=()=>{const t=U.sel,k=D.tracks[t];if(!k.type){toast("モジュールのあるトラックを選んでください");return}
+ if(Date.now()-taArm>2500){taArm=Date.now();toast(`もう一度押すと ${trackLabel(t)} の今の音色を全64パターンに適用`);return}taArm=0;
+ D.pats.forEach((P,i)=>{P.patch[t]=k.P.slice();send(["pa",i,t,P.patch[t]])});markDirty();toast(`${trackLabel(t)} の音色を全パターンで共通にしました`)};
+let clrArm=0;$("bClear").onclick=()=>{if(Date.now()-clrArm>2500){clrArm=Date.now();toast(`もう一度押すと ${trackLabel(U.sel)} のノートを消去`);return}clrArm=0;D.pats[U.editPat].tr[U.sel]=[];syncTrackNotes(U.editPat,U.sel);renderBank();needDraw=true;toast("消去しました")};
+
+// ================= roll / drum grid =================
+const roll=$("roll"),rc=roll.getContext("2d"),lane=$("lane"),lc=lane.getContext("2d");let dpr=1,RW=0,RH=0,LW=0,LH=0;
+function sizeCanvases(){dpr=window.devicePixelRatio||1;let r=roll.getBoundingClientRect();RW=r.width;RH=r.height;roll.width=Math.round(RW*dpr);roll.height=Math.round(RH*dpr);
+ r=lane.getBoundingClientRect();LW=r.width;LH=r.height;lane.width=Math.round(LW*dpr);lane.height=Math.round(LH*dpr);needDraw=true}
+const LBL=46;
+function rowsInfo(){const ty=D.tracks[U.sel].type;
+ if(ty===1)return {n:12,lab:i=>DRUMS[i],noteOf:i=>i,rowOf:n=>n};
+ const low=lowOf(U.sel);return {n:25,lab:i=>{const m=low+24-i;return m%12===0?nn(m):""},noteOf:i=>low+24-i,rowOf:n=>low+24-n,low}}
+function nn(n){return ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][n%12]+(Math.floor(n/12)-1)}
+const isBlack=n=>[1,3,6,8,10].includes(n%12);
+let needDraw=true,lastStepDrawn=-9;
+function drawRoll(playStep){
+ const c=rc;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle="#101317";c.fillRect(0,0,RW,RH);
+ const ty=D.tracks[U.sel].type;
+ if(!ty){c.fillStyle="#8a919c";c.font="600 14px -apple-system,sans-serif";c.fillText("このトラックは空です。下の SOUND で DRUM / BASS / POLY を割り当ててください。",20,40);return}
+ const R=rowsInfo(),rh=RH/R.n,cw=(RW-LBL)/16,base=U.viewPage*16,col=TCOL[U.sel];
+ for(let i=0;i<R.n;i++){const y=i*rh,n=R.noteOf(i);
+  c.fillStyle=ty===1?(i%2?"#171b21":"#1b1f26"):(isBlack(n)?"#14171c":"#1c2027");c.fillRect(LBL,y,RW-LBL,rh);
+  if(ty!==1&&n%12===0){c.fillStyle="#2c323c";c.fillRect(LBL,y+rh-1,RW-LBL,1)}
+  c.fillStyle=ty===1&&i===U.drumPart?col:"#8a919c";c.font=`700 ${Math.min(12,rh*.55)}px -apple-system,sans-serif`;c.textBaseline="middle";c.fillText(R.lab(i),6,y+rh/2)}
+ for(let s=0;s<=16;s++){const x=LBL+s*cw;c.fillStyle=s%4===0?"#3a414c":"#232830";c.fillRect(x,0,1,RH)}
+ if(playStep>=base&&playStep<base+16){c.fillStyle="#ffffff14";c.fillRect(LBL+(playStep-base)*cw,0,cw,RH)}
+ const list=D.pats[U.editPat].tr[U.sel];
+ for(const nt of list){const r=R.rowOf(nt.n);if(r<0||r>=R.n)continue;const s0=nt.t/TPS-base;const len=ty===1?1:nt.l/TPS;if(s0+len<=0||s0>=16)continue;
+  const x=LBL+Math.max(0,s0)*cw+2,x2=LBL+Math.min(16,s0+len)*cw-2,y=r*rh+2;
+  c.globalAlpha=.45+.55*nt.v/127;c.fillStyle=col;rrect(c,x,y,Math.max(4,x2-x),rh-4,4);c.fill();c.globalAlpha=1;
+  if(nt.f&1){c.fillStyle="#111";c.font="800 10px sans-serif";c.fillText("A",x+4,y+(rh-4)/2)}
+  if(nt.f&2){c.fillStyle="#111";c.fillRect(x2-8,y+(rh-4)/2-1,6,2)}}
+}
+function drawLane(playStep){
+ const c=lc;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle="#101317";c.fillRect(0,0,LW,LH);
+ const ty=D.tracks[U.sel].type;if(!ty)return;
+ const cw=(LW-LBL)/16,base=U.viewPage*16,col=TCOL[U.sel],list=D.pats[U.editPat].tr[U.sel];
+ const top=ty===2?36:0;
+ c.fillStyle="#8a919c";c.font="700 10px -apple-system,sans-serif";c.textBaseline="middle";
+ if(ty===2){c.fillText("ACC",8,9);c.fillText("SLIDE",8,27)}c.fillText(ty===1?DRUMS[U.drumPart]:"VEL",8,top+(LH-top)/2);
+ for(let s=0;s<16;s++){const x=LBL+s*cw,st=base+s,at=list.filter(n=>n.t>=st*TPS&&n.t<(st+1)*TPS&&(ty!==1||n.n===U.drumPart));
+  c.fillStyle=s===playStep-base?"#262b33":"#181c22";c.fillRect(x+2,top+2,cw-4,LH-top-4);
+  if(ty===2){const a=at.some(n=>n.f&1),sl=at.some(n=>n.f&2);c.fillStyle=a?"#ff4d5e":"#1c2027";rrect(c,x+3,2,cw-6,14,3);c.fill();c.fillStyle=sl?"#ffc940":"#1c2027";rrect(c,x+3,20,cw-6,14,3);c.fill()}
+  if(at.length){const v=Math.max(...at.map(n=>n.v));const h=(LH-top-8)*v/127;c.fillStyle=col;c.globalAlpha=.85;c.fillRect(x+cw*.25,LH-4-h,cw*.5,h);c.globalAlpha=1}}
+}
+function rrect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function playStepNow(){if(!A.pl||A.anchorPos<0)return -1;const pp=patPos(U.editPat);if(pp<0)return -1;
+ // only show the head when the edited pattern is actually sounding
+ if(!lanes.includes(U.editPat))return -1;return Math.floor(pp/TPS)}
+function frame(){
+ const ps=playStepNow();
+ if(U.follow&&ps>=0){const pg=Math.floor(ps/16);if(pg!==U.viewPage&&pg<pages()){U.viewPage=pg;renderBar();needDraw=true}}
+ if(U.page==="seq"&&(needDraw||ps!==lastStepDrawn)){drawRoll(ps);drawLane(ps);lastStepDrawn=ps;needDraw=false}
+ paintMeters();
+ requestAnimationFrame(frame)}
+// --- editing ---
+roll.addEventListener("pointerdown",e=>{const ty=D.tracks[U.sel].type;if(!ty)return;const r=roll.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+ if(Math.abs(r.height-RH)>1||Math.abs(r.width-RW)>1)sizeCanvases();
+ const R=rowsInfo(),rh=r.height/R.n,cw=(r.width-LBL)/16,row=Math.floor(y/rh);if(row<0||row>=R.n)return;
+ if(x<LBL){if(ty===1){U.drumPart=row;needDraw=true;send(["n",U.sel,row,110])}else{send(["n",U.sel,R.noteOf(row),100]);setTimeout(()=>send(["f",U.sel,R.noteOf(row)]),250)}return}
+ const st=U.viewPage*16+Math.floor((x-LBL)/cw),n=R.noteOf(row),list=D.pats[U.editPat].tr[U.sel],t0=st*TPS;
+ if(ty===1){U.drumPart=row;const i=list.findIndex(q=>q.n===n&&q.t>=t0&&q.t<t0+TPS);if(i>=0)list.splice(i,1);else{list.push({t:t0,n,v:110,l:TPS,f:0});send(["n",U.sel,n,110])}}
+ else{const i=list.findIndex(q=>q.n===n&&t0>=q.t&&t0<q.t+q.l);
+  if(i>=0)list.splice(i,1);
+  else{if(ty===2){for(let j=list.length-1;j>=0;j--)if(list[j].t>=t0&&list[j].t<t0+TPS)list.splice(j,1)}
+   const L=D.pats[U.editPat].len*TPS;list.push({t:t0,n,v:100,l:Math.min(U.noteLen*TPS,L-t0),f:0});send(["n",U.sel,n,100]);setTimeout(()=>send(["f",U.sel,n]),180)}}
+ list.sort((a,b)=>a.t-b.t);syncTrackNotes(U.editPat,U.sel);renderBank();renderTracks();needDraw=true});
+let laneDrag=null;
+function laneAt(e){const r=lane.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,cw=(LW-LBL)/16;const s=Math.floor((x-LBL)/cw);return {s:s<0||s>15?-1:U.viewPage*16+s,y}}
+lane.addEventListener("pointerdown",e=>{const ty=D.tracks[U.sel].type;if(!ty)return;const {s,y}=laneAt(e);if(s<0)return;const list=D.pats[U.editPat].tr[U.sel];const at=list.filter(n=>n.t>=s*TPS&&n.t<(s+1)*TPS&&(ty!==1||n.n===U.drumPart));
+ if(ty===2&&y<36){if(!at.length)return;const bit=y<18?1:2;const on=!at.some(n=>n.f&bit);at.forEach(n=>n.f=on?(n.f|bit):(n.f&~bit));
+  if(bit===2&&on){const nx=list.find(n=>n.t>at[0].t);if(nx)at.forEach(n=>n.l=Math.max(n.l,nx.t-n.t))}
+  syncTrackNotes(U.editPat,U.sel);needDraw=true;return}
+ lane.setPointerCapture(e.pointerId);laneDrag={id:e.pointerId};setVel(e)});
+lane.addEventListener("pointermove",e=>{if(laneDrag&&laneDrag.id===e.pointerId)setVel(e)});
+["pointerup","pointercancel"].forEach(t=>lane.addEventListener(t,e=>{if(laneDrag&&laneDrag.id===e.pointerId){laneDrag=null;syncTrackNotes(U.editPat,U.sel)}}));
+function setVel(e){const ty=D.tracks[U.sel].type,{s,y}=laneAt(e);if(s<0)return;const top=ty===2?36:0;const v=Math.max(1,Math.min(127,Math.round((1-(y-top-4)/(LH-top-8))*127)));
+ D.pats[U.editPat].tr[U.sel].forEach(n=>{if(n.t>=s*TPS&&n.t<(s+1)*TPS&&(ty!==1||n.n===U.drumPart))n.v=v});needDraw=true}
+
+// ================= bottom: keys / pads / sound =================
+$("bKeys").onclick=()=>{U.bottom="keys";renderBottom()};$("bSound").onclick=()=>{U.bottom="sound";renderBottom()};
+$("kOctDn").onclick=()=>rollLow(-12);$("kOctUp").onclick=()=>rollLow(12);
+function renderBottom(){const ty=D.tracks[U.sel].type;$("bKeys").classList.toggle("on",U.bottom==="keys");$("bSound").classList.toggle("on",U.bottom==="sound");
+ $("bKeys").textContent=ty===1?"PADS":"KEYS";
+ $("keys").style.display=U.bottom==="keys"&&ty!==1?"":"none";$("pads").style.display=U.bottom==="keys"&&ty===1?"":"none";$("sound").style.display=U.bottom==="sound"?"":"none";
+ if(U.bottom==="sound")buildSound();else if(ty===1)buildPads();else buildKeys()}
+function buildKeys(){const box=$("keys");box.innerHTML="";const W=box.clientWidth,nW=15,ww=W/nW;const B=[0,1,0,1,0,0,1,0,1,0,1,0];let wi=0;
+ for(let i=0;i<25;i++){const pc=i%12,el=document.createElement("div");el.dataset.i=i;
+  if(!B[pc]){el.className="wk"+(pc===0?" root":"");el.dataset.nm=nn(lowOf(U.sel)+i);el.style.left=(wi*ww)+"px";el.style.width=(ww-2)+"px";wi++}
+  else{el.className="bk";el.style.left=(wi*ww-ww*.32)+"px";el.style.width=(ww*.64)+"px"}box.appendChild(el)}}
+function buildPads(){const box=$("pads");box.innerHTML="";DRUMS.forEach((d,i)=>{const b=document.createElement("div");b.className="dpad";b.textContent=d;b.dataset.part=i;b.style.display="flex";b.style.alignItems="center";b.style.justifyContent="center";box.appendChild(b)})}
+// --- live play + realtime REC ---
+const held=new Map();
+function velFromKey(el,y){const r=el.getBoundingClientRect();return Math.max(40,Math.min(127,Math.round(55+72*(y-r.top)/r.height)))}
+function liveOn(pid,note,vel,el){const t=U.sel,ty=D.tracks[t].type;if(!ty)return;send(["n",t,note,vel]);if(el)el.classList.add("dn");
+ const h={el,note,t,vel,pos:-1,pat:U.editPat};
+ if(U.rec&&A.pl){h.pos=patPos(U.editPat);if(ty===1&&h.pos>=0){writeRec(h,0)}}
+ held.set(pid,h)}
+function liveOff(pid){const h=held.get(pid);if(!h)return;held.delete(pid);if(h.el)h.el.classList.remove("dn");send(["f",h.t,h.note]);
+ if(U.rec&&A.pl&&h.pos>=0&&D.tracks[h.t].type!==1){const now=patPos(h.pat);const L=D.pats[h.pat].len*TPS;let dur=now-h.pos;if(dur<0)dur+=L;writeRec(h,dur)}}
+function writeRec(h,dur){const p=h.pat,t=h.t,q=U.quant,L=D.pats[p].len*TPS;let tk=Math.round(h.pos/q)*q;if(tk>=L)tk-=L;
+ const list=D.pats[p].tr[t],ty=D.tracks[t].type;
+ if(ty===1){const i=list.findIndex(n=>n.n===h.note&&Math.abs(n.t-tk)<Math.max(q,1));if(i>=0)list.splice(i,1)}
+ else{const ql=Math.max(q,24);const len=Math.max(ql,Math.round(dur/ql)*ql);for(let j=list.length-1;j>=0;j--){const n=list[j];if((ty===2&&n.t===tk)||(n.n===h.note&&n.t===tk))list.splice(j,1)}
+  list.push({t:tk,n:h.note,v:h.vel,l:Math.min(len,L),f:0})}
+ if(ty===1)list.push({t:tk,n:h.note,v:h.vel,l:TPS,f:0});
+ list.sort((a,b)=>a.t-b.t);syncTrackNotes(p,t);needDraw=true;renderBank()}
+function releaseHeld(){[...held.keys()].forEach(liveOff)}
+const keysEl=$("keys");
+function keyAt(x,y){const el=document.elementFromPoint(x,y);return el&&el.dataset&&el.dataset.i!=null&&el.parentNode===keysEl?el:null}
+keysEl.addEventListener("pointerdown",e=>{const el=keyAt(e.clientX,e.clientY);if(!el)return;keysEl.setPointerCapture(e.pointerId);liveOn(e.pointerId,lowOf(U.sel)+(+el.dataset.i),velFromKey(el,e.clientY),el)});
+keysEl.addEventListener("pointermove",e=>{const h=held.get(e.pointerId);if(!h)return;const el=keyAt(e.clientX,e.clientY);if(el&&el!==h.el){liveOff(e.pointerId);liveOn(e.pointerId,lowOf(U.sel)+(+el.dataset.i),velFromKey(el,e.clientY),el)}});
+["pointerup","pointercancel"].forEach(t=>keysEl.addEventListener(t,e=>liveOff(e.pointerId)));
+const padsEl=$("pads");
+padsEl.addEventListener("pointerdown",e=>{const el=e.target.closest(".dpad");if(!el)return;U.drumPart=+el.dataset.part;liveOn(e.pointerId,+el.dataset.part,velFromKey(el,e.clientY),el);needDraw=true});
+["pointerup","pointercancel"].forEach(t=>padsEl.addEventListener(t,e=>liveOff(e.pointerId)));
+// --- SOUND panel ---
+function buildSound(){const box=$("sound"),t=U.sel,k=D.tracks[t];box.innerHTML="";
+ const tr=document.createElement("div");tr.className="typeRow";tr.innerHTML=`<span class="lbl">${trackLabel(t)} MODULE</span>`;
+ const seg=document.createElement("div");seg.className="seg";TYPES.forEach((nm,i)=>{const b=document.createElement("button");b.className="btn sm"+(k.type===i?" on":"");b.textContent=nm;b.onclick=()=>setType(t,i);seg.appendChild(b)});tr.appendChild(seg);
+ const o=ownerOf(t);const info=document.createElement("span");info.className="lbl";info.style.marginLeft="10px";info.textContent=k.type?`音色メモリー: ${patName(o)}${o>=0&&D.pats[o].patch[t]?"（保存済み）":""}`:"";tr.appendChild(info);box.appendChild(tr);
+ const kn=document.createElement("div");kn.className="knobs";box.appendChild(kn);
+ if(!k.type){kn.innerHTML='<div class="empty-msg">モジュールを選ぶと、このトラックが鳴るようになります。</div>';return}
+ (KNOBS[k.type]||[]).forEach(([id,label,steps])=>kn.appendChild(makeKnob(label,()=>k.P[id],v=>setParam(t,id,v),steps)));
+ kn.appendChild(makeKnob("VOLUME",()=>k.vol,v=>{k.vol=v;syncMix(t)}));
+ kn.appendChild(makeKnob("PAN",()=>(k.pan+1)/2,v=>{k.pan=v*2-1;syncMix(t)},0,true));}
+function setType(t,ty){const k=D.tracks[t];if(k.type===ty)return;k.type=ty;k.P=defParams(ty);send(["ty",t,ty]);k.P.forEach((v,i)=>send(["pv",t,i,v]));
+ D.pats.forEach((p,i)=>{if(p.patch[t]){p.patch[t]=null;send(["pa",i,t,null])}});
+ markDirty();renderTracks();renderBar();renderBottom();needDraw=true}
+function makeKnob(label,get,set,steps,bip){const k=document.createElement("div");k.className="knob";
+ k.innerHTML=`<svg viewBox="0 0 68 68"><circle cx="34" cy="34" r="27" fill="#0f1216" stroke="#2a2f38" stroke-width="2"/><path class="trk" fill="none" stroke="#2a2f38" stroke-width="5" stroke-linecap="round"/><path class="val" fill="none" stroke="var(--acc)" stroke-width="5" stroke-linecap="round"/><line class="ind" x1="34" y1="34" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg><div class="kv"></div><div class="kl">${label}</div>`;
+ const arc=(a0,a1)=>{const r=29,p=a=>[34+Math.cos(a*Math.PI/180)*r,34+Math.sin(a*Math.PI/180)*r];const [x0,y0]=p(a0),[x1,y1]=p(a1);return `M${x0} ${y0}A${r} ${r} 0 ${Math.abs(a1-a0)>180?1:0} ${a1>a0?1:0} ${x1} ${y1}`};
+ const draw=v=>{const a0=-225,a1=45,a=a0+(a1-a0)*v,am=bip?-90:a0;k.querySelector(".trk").setAttribute("d",arc(a0,a1));k.querySelector(".val").setAttribute("d",Math.abs(a-am)>1?arc(Math.min(am,a),Math.max(am,a)):"");
+  const r=a*Math.PI/180,l=k.querySelector(".ind");l.setAttribute("x2",34+Math.cos(r)*20);l.setAttribute("y2",34+Math.sin(r)*20);
+  k.querySelector(".kv").textContent=steps===2?(v<.5?"SAW":"SQR"):bip?(Math.abs(v-.5)<.01?"C":(v<.5?"L":"R")+Math.round(Math.abs(v-.5)*200)):String(Math.round(v*100))};
+ draw(get());let py=0,pv=0,pid=null;
+ k.addEventListener("pointerdown",e=>{pid=e.pointerId;k.setPointerCapture(pid);py=e.clientY;pv=get();if(steps===2){const v=get()<.5?1:0;set(v);draw(v);pid=null}e.preventDefault()});
+ k.addEventListener("pointermove",e=>{if(e.pointerId!==pid)return;const v=Math.max(0,Math.min(1,pv+(py-e.clientY)/200));set(v);draw(v)});
+ const up=e=>{if(e.pointerId===pid)pid=null};k.addEventListener("pointerup",up);k.addEventListener("pointercancel",up);return k}
+
+// ================= SONG =================
+function rowFilled(r){return D.chain[r].l.some(x=>x>=0)}
+function renderChain(){if(U.page!=="song")return;const box=$("chain"),wrap=$("chainWrap");
+ let last=-1;for(let r=0;r<MAXROW;r++)if(rowFilled(r))last=r;
+ const nBlk=Math.min(MAXROW/16,Math.max(4,Math.ceil((Math.max(last,U.songSel.row)+2)/16)));
+ const playRow=A.pl&&(A.md===1||U.songRec)?(U.songRec?U.songRec.row:A.row):-1;
+ const frag=document.createDocumentFragment();
+ for(let b=0;b<nBlk;b++){const blk=document.createElement("div");blk.className="blk";
+  const add=(el)=>blk.appendChild(el);
+  let e=document.createElement("div");add(e);
+  for(let c=0;c<16;c++){const r=b*16+c;e=document.createElement("div");e.className="hd"+(r===playRow?" play":"");e.textContent=r+1;add(e)}
+  for(let l=0;l<4;l++){e=document.createElement("div");e.className="rl";e.textContent=l<3?"LANE "+(l+1):"REP";add(e);
+   for(let c=0;c<16;c++){const r=b*16+c,ch=D.chain[r],btn=document.createElement("button");
+    const sel=U.songSel.row===r&&U.songSel.lane===l;
+    if(l<3){btn.className=`cell l${l+1}`+(ch.l[l]<0?" empty":"")+(sel?" sel":"")+(r===playRow?" pc":"");btn.textContent=ch.l[l]<0?"·":patName(ch.l[l])}
+    else{btn.className="cell rep"+(sel?" sel":"")+(r===playRow?" pc":"");btn.textContent=rowFilled(r)?(r===playRow&&!U.songRec?`${A.rep}/${ch.r}`:"×"+ch.r):""}
+    btn.dataset.r=r;btn.dataset.l=l;add(btn)}}
+  frag.appendChild(blk)}
+ box.innerHTML="";box.appendChild(frag);
+ $("sRepV").textContent=D.chain[U.songSel.row].r;
+ if(playRow>=0&&playRow!==renderChain.lastPlay){renderChain.lastPlay=playRow;const el=box.children[Math.floor(playRow/16)];if(el){const top=el.offsetTop-box.offsetTop;if(top<wrap.scrollTop||top+el.offsetHeight>wrap.scrollTop+wrap.clientHeight)wrap.scrollTop=top-8}}}
+(function(){const w=$("chainWrap");let st=null;
+ w.addEventListener("pointerdown",e=>{const b=e.target.closest(".cell");st=b?{b,x:e.clientX,y:e.clientY,id:e.pointerId}:null});
+ w.addEventListener("pointerup",e=>{if(!st||st.id!==e.pointerId)return;const S=st;st=null;if(Math.hypot(e.clientX-S.x,e.clientY-S.y)<10)songCellTap(+S.b.dataset.r,+S.b.dataset.l)});
+ w.addEventListener("pointercancel",()=>{st=null})})();
+function songCellTap(r,l){U.songSel={row:r,lane:l};
+ if(A.pl&&A.md===1&&rowFilled(r)&&r!==A.row){sendT(["jr",r]);songMsg("JUMP",`次の区切りで STEP ${r+1} へ`)}
+ else songMsg(`STEP ${r+1} / ${l<3?"LANE "+(l+1):"REPEAT"}`,l<3?"下のパターンをタップして書き込み":"REPEAT −／＋で回数を変更");
+ renderChain()}
+function renderSBank(){const box=$("sbank");box.innerHTML="";
+ for(let b=0;b<4;b++){const l=document.createElement("div");l.className="rl";l.textContent="ABCD"[b];box.appendChild(l);
+  for(let j=0;j<16;j++){const p=b*16+j,btn=document.createElement("button");const has=D.pats[p].tr.some(x=>x.length);
+   btn.className="pad"+(has?" has":"")+(A.pl&&A.md===0&&lanes[0]===p?" cur":"")+(A.pl&&A.md===0&&A.q===p?" q":"");btn.textContent=patName(p);btn.onclick=()=>songPick(p);box.appendChild(btn)}}}
+function songPick(p){
+ if(U.songRec&&A.pl){sendT(["sel",p]);A.q=p;songMsg("SONG REC",`次の区切りで ${patName(p)} へ`);renderSBank();return}
+ const s=U.songSel;U.editPat=p;U.bank=p>>4;
+ if(s.lane>2){songMsg("LANE を選んでください","REPEAT のセルにはパターンを書き込めません");return}
+ D.chain[s.row].l[s.lane]=p;syncRow(s.row);songMsg("WRITE",`STEP ${s.row+1} / LANE ${s.lane+1} = ${patName(p)}`);
+ if(s.row<MAXROW-1)U.songSel={row:s.row+1,lane:s.lane};
+ renderChain()}
+function songMsg(a,b){$("songStat").innerHTML=`<b>${a}</b><span>${b||""}</span>`}
+function renderSongStat(){}
+$("sClear").onclick=()=>{const s=U.songSel;if(s.lane>2){D.chain[s.row].r=1}else D.chain[s.row].l[s.lane]=-1;syncRow(s.row);renderChain()};
+$("sIns").onclick=()=>{const r=U.songSel.row;D.chain.splice(r,0,{l:[-1,-1,-1],r:1});D.chain.length=MAXROW;for(let i=r;i<MAXROW;i++)syncRow(i);renderChain();songMsg("INSERT",`STEP ${r+1} に空きを挿入`)};
+$("sDel").onclick=()=>{const r=U.songSel.row;D.chain.splice(r,1);D.chain.push({l:[-1,-1,-1],r:1});for(let i=r;i<MAXROW;i++)syncRow(i);renderChain();songMsg("DELETE",`STEP ${r+1} を削除して詰めました`)};
+$("sRepDn").onclick=()=>{const c=D.chain[U.songSel.row];c.r=Math.max(1,c.r-1);syncRow(U.songSel.row);renderChain()};
+$("sRepUp").onclick=()=>{const c=D.chain[U.songSel.row];c.r=Math.min(99,c.r+1);syncRow(U.songSel.row);renderChain()};
+
+// ================= iOS: no double-tap / pinch zoom =================
+(function(){let last=0;
+ document.addEventListener("touchend",e=>{const now=Date.now();if(now-last<350&&!(e.target.closest&&e.target.closest("label")))e.preventDefault();last=now},{passive:false});
+ // buttons react on touch-down (no waiting for the finger to lift); the later native click is swallowed
+ document.addEventListener("pointerdown",e=>{const b=e.target.closest&&e.target.closest("button");if(!b||b.disabled||b.closest("#chainWrap"))return;b.__pd=performance.now();b.click()},true);
+ document.addEventListener("click",e=>{if(!e.isTrusted)return;const b=e.target.closest&&e.target.closest("button");if(b&&b.__pd&&performance.now()-b.__pd<2000){b.__pd=0;e.stopPropagation();e.preventDefault()}},true);
+ ["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+ document.addEventListener("dblclick",e=>e.preventDefault(),{passive:false});
+ document.addEventListener("touchmove",e=>{if(e.touches&&e.touches.length>1)e.preventDefault();else if(!e.target.closest("#chainWrap,#log"))e.preventDefault()},{passive:false});})();
+
+// ================= boot =================
+function renderAll(){showOct();renderTracks();renderBank();renderBar();renderBottom();if(U.page==="song"){renderChain();renderSBank()}needDraw=true}
+let lastSongPaint=0;
+setInterval(()=>{if(U.page==="song"&&A.pl){renderChain();renderSBank()}if(A.pl&&U.page==="seq")renderBank()},400);
+function boot(){
+ let z=null;try{z=JSON.parse(localStorage.getItem("emg_v02_autosave")||"null")}catch(_){}
+ if(validProject(z)){loadProject(z);log("前回の作業を復元しました")}else newProject(true);
+ lanes=[U.editPat,-1,-1];applyOwnersToMirror();$("bpmV").textContent=D.bpm;sizeCanvases();renderAll();requestAnimationFrame(frame)}
+window.addEventListener("resize",()=>{sizeCanvases();renderBottom()});
+try{const ro=new ResizeObserver(()=>{sizeCanvases()});ro.observe(roll.parentNode);ro.observe(lane.parentNode)}catch(_){}
+boot();
+$("bStart").onclick=async()=>{try{await startAudio("start");$("startOv").style.display="none"}catch(err){log("start failed: "+err);document.querySelector("#startOv p").textContent="音声を開始できませんでした: "+err}};
+</script>
+</body>
+</html>
